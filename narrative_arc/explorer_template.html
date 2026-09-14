@@ -1,0 +1,495 @@
+<meta charset="utf-8">
+<title>Narrative Arc Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f4f4f7;
+    --surface: #ffffff;
+    --ink: #1a1823;
+    --muted: #6b6878;
+    --rule: #dedce5;
+    --path: #b9b6c4;
+    --accent: #4c2fb8;
+    --accent-soft: rgba(76, 47, 184, 0.10);
+    --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0f0e14;
+      --surface: #17151f;
+      --ink: #eceaf3;
+      --muted: #9c98ab;
+      --rule: #2b2836;
+      --path: #4a4657;
+      --accent: #b9a6ff;
+      --accent-soft: rgba(185, 166, 255, 0.14);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0f0e14;
+    --surface: #17151f;
+    --ink: #eceaf3;
+    --muted: #9c98ab;
+    --rule: #2b2836;
+    --path: #4a4657;
+    --accent: #b9a6ff;
+    --accent-soft: rgba(185, 166, 255, 0.14);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font: 14px/1.5 var(--sans);
+    padding-inline: 20px;
+    padding-block: 28px 40px;
+  }
+  .page { max-width: 1160px; margin-inline: auto; display: grid; gap: 18px; }
+
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 20px; }
+  h1 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+  .stats { font: 12px/1.5 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 12px 14px; align-items: end; }
+  .field { display: grid; gap: 4px; }
+  .field label, .label {
+    font: 500 10.5px/1 var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+  select {
+    appearance: none;
+    font: 13px/1.2 var(--sans);
+    color: var(--ink);
+    background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238a8797' stroke-width='1.4'/%3E%3C/svg%3E") no-repeat right 10px center;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 7px 30px 7px 10px;
+    min-width: 0;
+    cursor: pointer;
+  }
+  select:disabled { opacity: 0.45; cursor: not-allowed; }
+  select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .check { display: flex; align-items: center; gap: 7px; padding-block: 7px; font-size: 13px; cursor: pointer; }
+  .check input { accent-color: var(--accent); margin: 0; }
+
+  .view3d {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    height: min(560px, 72vw);
+    min-height: 320px;
+  }
+  .plot { position: absolute; inset: 0; }
+  .corner {
+    position: absolute; left: 14px; top: 11px; z-index: 2; pointer-events: none;
+    font: 500 10.5px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+  }
+  .notice {
+    position: absolute; inset: 0; display: grid; place-items: center; z-index: 3;
+    color: var(--muted); font-size: 13px; text-align: center; padding: 20px;
+  }
+
+  .reader { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .scrub { display: flex; align-items: center; gap: 14px; }
+  .scrub input[type="range"] { flex: 1; accent-color: var(--accent); margin: 0; }
+  .where { font: 12px/1.4 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .passage { display: grid; gap: 4px; min-height: 64px; }
+  .passage .meta { font-size: 13px; font-weight: 500; }
+  .passage .meta span { color: var(--muted); font-weight: 400; }
+  .passage blockquote { margin: 0; max-width: 72ch; color: var(--muted); font-size: 13.5px; }
+  .key { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font: 11.5px/1 var(--mono); color: var(--muted); }
+  .ramp { width: 140px; height: 8px; border-radius: 2px; }
+  .swatch { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+  .flats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .flat {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    aspect-ratio: 1 / 1;
+    max-width: 100%;
+  }
+  footer { font-size: 12.5px; color: var(--muted); max-width: 80ch; }
+  footer b { color: var(--ink); font-weight: 500; }
+
+  @media (max-width: 760px) {
+    .flats { grid-template-columns: minmax(0, 1fr); }
+    .where { white-space: normal; }
+  }
+</style>
+
+<div class="page">
+  <header>
+    <h1>Narrative Arc Explorer</h1>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div class="controls">
+    <div class="field"><label for="book">Book</label><select id="book"></select></div>
+    <div class="field"><label for="model">Embedding model</label><select id="model"></select></div>
+    <div class="field"><label for="method">Projection</label><select id="method">
+      <option value="pca">PCA</option><option value="umap">UMAP</option><option value="tsne">t-SNE</option>
+    </select></div>
+    <div class="field"><label for="size">Window</label><select id="size"></select></div>
+    <div class="field"><label for="stride">Step</label><select id="stride"></select></div>
+    <div class="field"><label for="color">Color</label><select id="color">
+      <option value="order">Reading order</option><option value="chapter">Chapter</option><option value="dominant">Dominant emotion</option>
+    </select></div>
+    <div class="field"><label for="curve">Curve</label><select id="curve">
+      <option value="none">None</option><option value="smooth">Smooth</option><option value="tight">Tight</option>
+    </select></div>
+    <label class="check" for="control"><input type="checkbox" id="control"> Control points</label>
+  </div>
+
+  <div class="view3d">
+    <div class="corner" id="corner3d">3-D</div>
+    <div class="plot" id="plot3d"></div>
+    <div class="notice" id="notice" hidden></div>
+  </div>
+
+  <div class="reader">
+    <div class="scrub">
+      <input type="range" id="position" min="0" max="0" value="0" aria-label="Reading position">
+      <span class="where" id="where"></span>
+    </div>
+    <div class="passage">
+      <div class="meta" id="meta"></div>
+      <blockquote id="snippet"></blockquote>
+    </div>
+    <div class="key" id="key"></div>
+  </div>
+
+  <div class="flats">
+    <div class="flat"><div class="corner" id="corner12"></div><div class="plot" id="plot12"></div></div>
+    <div class="flat"><div class="corner" id="corner13"></div><div class="plot" id="plot13"></div></div>
+    <div class="flat"><div class="corner" id="corner23"></div><div class="plot" id="plot23"></div></div>
+  </div>
+
+  <footer>
+    Each point is a <b>window</b> of consecutive paragraphs, averaged; the line joins them in reading order,
+    from <b>O</b> to <b>X</b>. The three flat views are the same points with one axis dropped, so a crossing in one
+    view can be checked in the others. PCA distances are real; UMAP and t-SNE keep only who is near whom.
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/3.5.1/plotly-gl3d.min.js"></script>
+<script id="arc-data" type="application/json">/*__ARC_DATA__*/null</script>
+<script>
+(function () {
+  const DATA = JSON.parse(document.getElementById("arc-data").textContent);
+  const $ = (id) => document.getElementById(id);
+  const SIZES = [10, 20, 40, 80];
+  const STRIDES = { quarter: 0.25, half: 0.5, full: 1 };
+  const STRIDE_NAMES = { quarter: "quarter window", half: "half window", full: "no overlap" };
+  const METHOD_NAMES = { pca: "PCA", umap: "UMAP", tsne: "t-SNE" };
+  const PLANES = [[0, 1, "plot12", "corner12"], [0, 2, "plot13", "corner13"], [1, 2, "plot23", "corner23"]];
+  const PLASMA = ["#0d0887", "#6a00a8", "#b12a90", "#e16462", "#fca636", "#f0f921"];
+  const VIRIDIS = ["#440154", "#3b528b", "#21918c", "#5ec962", "#fde725"];
+  const CONFIG = { responsive: true, displayModeBar: false };
+
+  const state = { book: null, model: null, method: "pca", size: 40, stride: "half",
+                  color: "order", curve: "smooth", control: false, index: 0 };
+  let view = null;  // everything derived for the current selection
+
+  // ---------- controls ----------
+  function fill(select, options, value) {
+    select.innerHTML = "";
+    for (const [v, label] of options) {
+      const o = document.createElement("option");
+      o.value = v; o.textContent = label; select.appendChild(o);
+    }
+    select.value = value;
+  }
+  const books = Object.keys(DATA.books);
+  state.book = books.includes("alice_wonderland") ? "alice_wonderland" : books[0];
+  fill($("book"), books.map((b) => [b, DATA.books[b].title]), state.book);
+  fill($("size"), SIZES.map((s) => [s, `${s} paragraphs`]), state.size);
+
+  function syncDependentControls() {
+    const models = DATA.models[state.book];
+    if (!models.includes(state.model)) state.model = models.includes("bge-m3") ? "bge-m3" : models[0];
+    fill($("model"), models.map((m) => [m, m]), state.model);
+    fill($("stride"), Object.keys(STRIDES).map((k) => {
+      const step = Math.max(1, Math.round(state.size * STRIDES[k]));
+      return [k, `${step} (${STRIDE_NAMES[k]})`];
+    }), state.stride);
+    const hasEmotions = DATA.books[state.book].emotions.length > 0;
+    const dom = $("color").querySelector('option[value="dominant"]');
+    dom.disabled = !hasEmotions;
+    dom.textContent = hasEmotions ? "Dominant emotion" : "Dominant emotion (no scores)";
+    if (!hasEmotions && state.color === "dominant") state.color = "order";
+    $("color").value = state.color;
+  }
+
+  for (const id of ["book", "model", "method", "size", "stride", "color", "curve"]) {
+    $(id).addEventListener("change", (e) => {
+      const frac = view && view.n > 1 ? state.index / (view.n - 1) : 0;
+      state[id] = id === "size" ? Number(e.target.value) : e.target.value;
+      if (id === "book" || id === "size") syncDependentControls();
+      build(frac);
+    });
+  }
+  $("control").addEventListener("change", (e) => { state.control = e.target.checked; render(); });
+  $("position").addEventListener("input", (e) => setIndex(Number(e.target.value)));
+
+  // ---------- data for the current selection ----------
+  function unflatten(flat) {
+    const pts = [];
+    for (let i = 0; i < flat.length; i += 3) pts.push([flat[i], flat[i + 1], flat[i + 2]]);
+    return pts;
+  }
+  function column(pts, k) { return pts.map((p) => p[k]); }
+
+  function build(frac) {
+    const book = DATA.books[state.book];
+    const win = book.windows[`${state.size}:${state.stride}`];
+    const proj = DATA.projections[`${state.book}|${state.model}|${state.size}:${state.stride}`][state.method];
+    const n = win.starts.length;
+    view = { book, win, proj, n, error: proj.error || null };
+    if (!view.error) {
+      view.pts = unflatten(proj.xyz);
+      const fit = proj.fits[state.curve];
+      view.fit = state.curve === "none" ? null : { curve: unflatten(fit.curve), control: unflatten(fit.control), meta: fit };
+      const all = view.fit ? view.pts.concat(view.fit.curve) : view.pts;
+      view.range = [0, 1, 2].map((k) => {
+        const v = column(all, k), lo = Math.min(...v), hi = Math.max(...v), pad = (hi - lo) * 0.06 || 1;
+        return [lo - pad, hi + pad];
+      });
+    }
+    state.index = Math.round(frac * (n - 1));
+    $("position").max = n - 1;
+    $("position").value = state.index;
+    render();
+  }
+
+  // ---------- colors ----------
+  function tokens() {
+    const css = getComputedStyle(document.documentElement);
+    const t = (name) => css.getPropertyValue(name).trim();
+    return { ink: t("--ink"), muted: t("--muted"), rule: t("--rule"), path: t("--path"),
+             accent: t("--accent"), surface: t("--surface"), sans: t("--sans"), mono: t("--mono") };
+  }
+  function scale(stops) { return stops.map((c, i) => [i / (stops.length - 1), c]); }
+  function lerpColor(stops, f) {
+    const x = Math.min(0.9999, Math.max(0, f)) * (stops.length - 1), i = Math.floor(x), u = x - i;
+    const rgb = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16));
+    const a = rgb(stops[i]), b = rgb(stops[i + 1]);
+    return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * u)).join(",")})`;
+  }
+
+  function pointColors() {
+    const { win, book, n } = view;
+    if (state.color === "dominant") {
+      return { color: win.dominant.map((c) => book.emotions[c].color) };
+    }
+    if (state.color === "chapter") {
+      return { color: win.chapter, colorscale: scale(VIRIDIS),
+               cmin: Math.min(...win.chapter), cmax: Math.max(...win.chapter) };
+    }
+    return { color: win.starts.map((_, i) => i), colorscale: scale(PLASMA), cmin: 0, cmax: n - 1 };
+  }
+
+  // ---------- traces ----------
+  function traces(dims, t) {
+    const is3d = dims.length === 3;
+    const type = is3d ? "scatter3d" : "scatter";
+    const xyz = (pts) => {
+      const o = { x: column(pts, dims[0]), y: column(pts, dims[1]) };
+      if (is3d) o.z = column(pts, dims[2]);
+      return o;
+    };
+    const out = [];
+    out.push({ type, mode: "lines", ...xyz(view.pts), hoverinfo: "skip",
+               line: { color: t.path, width: is3d ? 2 : 1.2 }, opacity: view.fit ? 0.55 : 1 });
+
+    if (view.fit) {
+      const c = view.fit.curve;
+      if (is3d) {
+        out.push({ type, mode: "lines", ...xyz(c), hoverinfo: "skip",
+                   line: { color: c.map((_, i) => i), colorscale: scale(PLASMA), width: 5 } });
+      } else {
+        // 2-D lines take one color; split into short runs so the curve still shades by progress.
+        const runs = 48, per = Math.ceil(c.length / runs);
+        for (let r = 0; r < runs; r++) {
+          const seg = c.slice(r * per, Math.min(c.length, (r + 1) * per + 1));
+          if (seg.length < 2) continue;
+          out.push({ type, mode: "lines", ...xyz(seg), hoverinfo: "skip",
+                     line: { color: lerpColor(PLASMA, (r + 0.5) / runs), width: 2.4 } });
+        }
+      }
+      if (state.control) {
+        out.push({ type, mode: "lines+markers", ...xyz(view.fit.control), hoverinfo: "skip",
+                   line: { color: t.muted, width: 1, dash: "dot" },
+                   marker: { size: is3d ? 3 : 5, color: t.muted, symbol: "square" } });
+      }
+    }
+
+    const colors = pointColors();
+    out.push({ type, mode: "markers", ...xyz(view.pts), customdata: view.pts.map((_, i) => i),
+               hoverinfo: "none",
+               marker: { size: is3d ? 4.2 : 7, ...colors, opacity: 0.95,
+                         line: { color: t.surface, width: is3d ? 0 : 0.8 } } });
+
+    const ends = [[0, "O", is3d ? "circle-open" : "circle-open"], [view.n - 1, "X", "x"]];
+    for (const [i, label, symbol] of ends) {
+      out.push({ type, mode: "markers+text", ...xyz([view.pts[i]]), hoverinfo: "skip",
+                 text: [label], textposition: "top center",
+                 textfont: { family: t.mono, size: 12, color: t.ink },
+                 marker: { size: is3d ? 8 : 12, symbol, color: t.ink, line: { color: t.ink, width: 2 } } });
+    }
+
+    const p = view.pts[state.index];
+    out.push({ type, mode: "markers", ...xyz([p]), hoverinfo: "skip",
+               marker: { size: is3d ? 11 : 17, symbol: "circle-open", color: t.accent,
+                         line: { color: t.accent, width: 3 } } });
+    return out;
+  }
+
+  function axis(label, range, t, is3d) {
+    const base = { title: { text: label, font: { family: t.mono, size: 11, color: t.muted } },
+                   range, gridcolor: t.rule, zeroline: false, color: t.muted,
+                   tickfont: { family: t.mono, size: 10, color: t.muted } };
+    return is3d ? { ...base, showbackground: false, showspikes: false } : { ...base, linecolor: t.rule };
+  }
+
+  function render() {
+    const t = tokens();
+    syncStats();
+    const plots = ["plot3d", "plot12", "plot13", "plot23"];
+    if (view.error) {
+      plots.forEach((id) => Plotly.purge($(id)));
+      $("notice").hidden = false;
+      $("notice").textContent = `${METHOD_NAMES[state.method]} could not run on ${view.n} windows. ` +
+        "Try a smaller window or step, or another projection.";
+      showPassage(t);
+      return;
+    }
+    $("notice").hidden = true;
+    const labels = view.proj.labels;
+    const short = (l) => l.split(" ")[0];
+
+    Plotly.react($("plot3d"), traces([0, 1, 2], t), {
+      paper_bgcolor: "rgba(0,0,0,0)", showlegend: false, uirevision: "arc",
+      margin: { l: 0, r: 0, t: 0, b: 0 }, font: { family: t.sans, color: t.ink },
+      scene: { xaxis: axis(labels[0], view.range[0], t, true), yaxis: axis(labels[1], view.range[1], t, true),
+               zaxis: axis(labels[2], view.range[2], t, true), aspectmode: "cube",
+               camera: { eye: { x: 1.15, y: -1.25, z: 0.7 } } },
+    }, CONFIG);
+    $("corner3d").textContent = `${METHOD_NAMES[state.method]} · 3-D · drag to rotate`;
+
+    for (const [a, b, id, corner] of PLANES) {
+      Plotly.react($(id), traces([a, b], t), {
+        paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", showlegend: false,
+        margin: { l: 52, r: 14, t: 34, b: 44 }, font: { family: t.sans, color: t.ink },
+        xaxis: axis(labels[a], view.range[a], t, false), yaxis: axis(labels[b], view.range[b], t, false),
+        hovermode: "closest", dragmode: "zoom",
+      }, CONFIG);
+      $(corner).textContent = `${short(labels[a])} × ${short(labels[b])}`;
+    }
+    for (const id of plots) bindHover($(id));
+    showPassage(t);
+  }
+
+  function bindHover(el) {
+    if (el.dataset.bound) return;
+    el.dataset.bound = "1";
+    el.on("plotly_hover", (e) => {
+      const pt = e.points.find((p) => p.customdata !== undefined);
+      if (pt) setIndex(pt.customdata);
+    });
+  }
+
+  function setIndex(i) {
+    state.index = i;
+    $("position").value = i;
+    const t = tokens();
+    if (!view.error) {
+      const p = view.pts[i];
+      const move = (id, dims) => {
+        const el = $(id);
+        if (!el.data) return;
+        const update = { x: [[p[dims[0]]]], y: [[p[dims[1]]]] };
+        if (dims.length === 3) update.z = [[p[dims[2]]]];
+        Plotly.restyle(el, update, [el.data.length - 1]);
+      };
+      move("plot3d", [0, 1, 2]);
+      for (const [a, b, id] of PLANES) move(id, [a, b]);
+    }
+    showPassage(t);
+  }
+
+  // ---------- text ----------
+  function syncStats() {
+    const { n, proj } = view;
+    const step = Math.max(1, Math.round(state.size * STRIDES[state.stride]));
+    const parts = [`${n} windows`, `${state.size} ¶ each, step ${step}`];
+    if (!view.error) {
+      parts.push(`trust ${proj.trust.toFixed(2)}`);
+      if (view.fit) parts.push(`${view.fit.meta.n_control} control pts, λ ${view.fit.meta.lambda}`);
+    }
+    $("stats").textContent = parts.join("  ·  ");
+  }
+
+  function showPassage(t) {
+    const { book, win, n } = view;
+    const i = state.index;
+    $("where").textContent = `window ${i + 1} / ${n}`;
+    const chapter = book.chapters[String(win.chapter[i])] || "";
+    const meta = $("meta");
+    meta.textContent = "";
+    meta.append(`¶ ${win.starts[i] + 1}–${win.stops[i]}`);
+    const extra = document.createElement("span");
+    let tail = chapter ? `  ·  ${chapter}` : "";
+    if (win.dominant) tail += `  ·  mostly ${book.emotions[win.dominant[i]].name}`;
+    extra.textContent = tail;
+    meta.append(extra);
+    $("snippet").textContent = book.text[String(win.mid[i])] || "";
+    drawKey();
+  }
+
+  function drawKey() {
+    const key = $("key");
+    key.innerHTML = "";
+    if (state.color === "dominant") {
+      const used = new Set(view.win.dominant);
+      view.book.emotions.forEach((e, c) => {
+        if (!used.has(c)) return;
+        const s = document.createElement("span");
+        s.className = "swatch";
+        s.innerHTML = `<i style="background:${e.color}"></i>`;
+        s.append(e.name);
+        key.appendChild(s);
+      });
+      return;
+    }
+    const stops = state.color === "chapter" ? VIRIDIS : PLASMA;
+    const [from, to] = state.color === "chapter" ? ["first chapter", "last chapter"] : ["opening", "ending"];
+    const ramp = document.createElement("span");
+    ramp.className = "ramp";
+    ramp.style.background = `linear-gradient(90deg, ${stops.join(", ")})`;
+    key.append(from, ramp, to);
+  }
+
+  // ---------- theme ----------
+  const rerender = () => view && render();
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerender);
+  new MutationObserver(rerender).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  syncDependentControls();
+  $("method").value = state.method;
+  $("curve").value = state.curve;
+  build(0);
+})();
+</script>
