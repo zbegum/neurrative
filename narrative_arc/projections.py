@@ -23,8 +23,11 @@ from sklearn.manifold import TSNE
 METHODS = ("pca", "umap", "tsne")
 
 # name: display name. tag: folder/filename spelling. labels: one axis label per
-# component. info: whatever is worth recording in params.json.
-Projection = namedtuple("Projection", "name tag labels coords suffix info")
+# component. info: whatever is worth recording in params.json. model: the fitted
+# PCA, so other points (e.g. single paragraphs) can be placed in the same space;
+# None for UMAP and t-SNE.
+Projection = namedtuple("Projection", "name tag labels coords suffix info model",
+                        defaults=(None,))
 
 
 def project_pca(pooled, n_components):
@@ -34,7 +37,7 @@ def project_pca(pooled, n_components):
   print(f"  PCA: explained variance {var.sum():.1%} over {n_components} components")
   labels = tuple(f"PC{i + 1} ({v:.1%} var)" for i, v in enumerate(var))
   return Projection("PCA", "pca", labels, coords, "",
-                    {"explained_variance_ratio": var.round(4).tolist()})
+                    {"explained_variance_ratio": var.round(4).tolist()}, pca)
 
 
 def project_umap(pooled, n_components, neighbors, min_dist, seed):

@@ -113,6 +113,49 @@ python build_windows.py
 Hover a window in the HTML to see its paragraph range, chapter and the opening of
 its middle paragraph, so any point on the arc can be read back as text.
 
+### Narrative tube
+
+```bash
+python arc_tube.py                               # emotion sections, PCA
+python arc_tube.py --normalize --round 36        # each emotion's own range, rounded sections
+python arc_tube.py --section spread --sides 16   # paragraph scatter around the curve
+python arc_tube.py --methods pca umap tsne
+```
+
+The arc thickened into a tube: every window gets a polygon cross-section, and
+the polygons are joined smoothly along the fitted 3-D curve, so the shape changes
+over reading time. Written to `output/<book>/<model>/arc_tube/<projection>/`
+(PNG, rotatable HTML, and the mesh as `.npz`).
+
+- **`--section emotions`**: one vertex per emotion. A vertex sits further
+  from the curve the stronger that emotion is in the window, and the surface is
+  colored by emotion. `--normalize` shows each emotion's change over the book
+  instead of its absolute strength.
+- **`--section spread`** (PCA only): the window's paragraphs, projected onto the
+  plane perpendicular to the curve, give a covariance ellipse. It is scaled as a
+  standard error by default (how precisely the window is located) and as the
+  paragraphs' own scatter with `--spread-scale sd`.
+
+Construction (`narrative_arc/tube.py`):
+1. **Frames.** Rotation-minimizing frames (double reflection, Wang et al.
+   2008), so "vertex j" keeps pointing the same way along the tube.
+2. **Sweep.** The section radii are smoothed across windows, then interpolated
+   along the curve with PCHIP, which never overshoots.
+3. **Mesh.** The result is a closed triangle mesh.
+4. **Folding.** Where the curve bends tighter than the tube is thick, the
+   surface would fold through itself. The whole tube is scaled by one factor so
+   that 95% of the curve is fold-free, and only the sharpest bends are narrowed
+   locally. Thickness therefore stays comparable along the story. Each run
+   prints both the factor and the narrowed fraction.
+
+**Interactive:** `python tube_explorer.py` writes `output/tube_explorer.html`.
+- Dropdowns: book, model, projection, window, step, cross-section, surface color.
+- Live controls: thickness, smoothing, rounded sections.
+- A reading-position slider highlights one window's section and shows its text.
+
+The projections, centerlines, frames and curvature are precomputed. The tube
+itself is rebuilt in the page, so the sliders respond instantly.
+
 ### 3-D grid with flat views
 
 ```bash
