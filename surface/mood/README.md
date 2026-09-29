@@ -19,6 +19,8 @@ instead of cutting through them.
     python surface/mood/run.py --figure plane         # the 2-D layout, by reading order and by mood
     python surface/mood/run.py --figure arc           # the arc over the surface (geodesics)
     python surface/mood/run.py --figure interactive   # rotatable HTML, every paragraph hoverable
+    python surface/mood/mood_viewer.py                # the surface with the emotions as its axis,
+                                                      # the arc lying on it, the text beside it
 
     python surface/mood/run.py --figure arc --sampling douglas_peucker --n 60
     python surface/mood/run.py --figure arc --legs straight   # no geodesic solver needed
@@ -48,6 +50,7 @@ Output: `surface/mood/output/<book>/<model>/`.
 | `geodesic.py` | join waypoints with exact geodesics along the surface |
 | `plot.py` | draw the plane, the surface and the arc |
 | `interactive.py` | the hoverable HTML page |
+| `mood_viewer.py` | the reading view: emotion-axis surface, the arc on it, text and timeline |
 | `data.py` | load paragraphs, scores, chapters and the 2-D layout |
 | `run.py` / `grids.py` | one figure at a time / the comparison grids |
 

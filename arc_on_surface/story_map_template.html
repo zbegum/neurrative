@@ -62,21 +62,6 @@ const range = (f) => {
   return [d3.min(v), d3.max(v)];
 };
 
-// the window path sampled densely (Catmull-Rom), each point with its reading position
-function denseArc(P, per = 8) {
-  const out = [];
-  for (let k = 0; k < P.length - 1; k++) {
-    const p0 = P[Math.max(0, k - 1)], p1 = P[k], p2 = P[k + 1], p3 = P[Math.min(P.length - 1, k + 2)];
-    for (let s = 0; s < per; s++) {
-      const t = s / per, t2 = t * t, t3 = t2 * t;
-      const cr = (a, b, c, d) => 0.5 * (2 * b + (c - a) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (3 * b - a - 3 * c + d) * t3);
-      out.push([cr(p0[0], p1[0], p2[0], p3[0]), cr(p0[1], p1[1], p2[1], p3[1]), p1[2] + t * (p2[2] - p1[2])]);
-    }
-  }
-  out.push(P[P.length - 1]);
-  return out;
-}
-
 // ---- 2-D ----------------------------------------------------------------------
 let sx, sy, line2d;
 function draw2d() {

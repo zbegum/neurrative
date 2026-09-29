@@ -3,6 +3,7 @@
 // own code, inside one <script type="module">. d3 is loaded as a global before.
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 
 const $ = (id) => document.getElementById(id);
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -79,6 +80,22 @@ function pathAt(path, i) {
   return { k: path.length - 2, t: 1 };
 }
 
+// A window path [[x, y, centre], ...] sampled densely along a Catmull-Rom curve;
+// each sample keeps its reading position (the interpolated centre).
+function denseArc(P, per = 8) {
+  const out = [];
+  for (let k = 0; k < P.length - 1; k++) {
+    const p0 = P[Math.max(0, k - 1)], p1 = P[k], p2 = P[k + 1], p3 = P[Math.min(P.length - 1, k + 2)];
+    for (let s = 0; s < per; s++) {
+      const t = s / per, t2 = t * t, t3 = t2 * t;
+      const cr = (a, b, c, d) => 0.5 * (2 * b + (c - a) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (3 * b - a - 3 * c + d) * t3);
+      out.push([cr(p0[0], p1[0], p2[0], p3[0]), cr(p0[1], p1[1], p2[1], p3[1]), p1[2] + t * (p2[2] - p1[2])]);
+    }
+  }
+  out.push(P[P.length - 1]);
+  return out;
+}
+
 // ---- 3-D -------------------------------------------------------------------------
 // Map the PCA extent to a unit square around the origin: x -> world x, y -> world -z.
 function Frame(extent) {
@@ -112,22 +129,34 @@ function Scene(el) {
   scene.add(new THREE.HemisphereLight(0xffffff, 0x777777, 2.2));
   const sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(1, 3, 2); scene.add(sun);
   const group = new THREE.Group(); scene.add(group);
+  // HTML labels placed in 3-D (CSS2DObject), drawn over the canvas
+  const labels = new CSS2DRenderer();
+  labels.domElement.style.position = "absolute"; labels.domElement.style.inset = "0";
+  labels.domElement.style.pointerEvents = "none";
+  el.appendChild(labels.domElement);
   let raf = null;
   const render = () => {
     raf = null;
     if (controls.update()) request();
     renderer.render(scene, camera);
+    labels.render(scene, camera);
   };
   const request = () => { if (!raf) raf = requestAnimationFrame(render); };
   controls.addEventListener("change", request);
   new ResizeObserver(() => {
     const W = el.clientWidth, H = el.clientHeight;
     if (!W || !H) return;
-    renderer.setSize(W, H, false); camera.aspect = W / H; camera.updateProjectionMatrix(); request();
+    renderer.setSize(W, H, false); labels.setSize(W, H);
+    camera.aspect = W / H; camera.updateProjectionMatrix(); request();
   }).observe(el);
   return {
     THREE, renderer, scene, camera, controls, group, request,
-    clear() { while (group.children.length) { const o = group.children.pop(); o.geometry?.dispose(); } },
+    clear() {
+      while (group.children.length) {
+        const o = group.children.pop();
+        o.traverse((c) => { c.geometry?.dispose(); if (c.isCSS2DObject) c.element.remove(); });
+      }
+    },
   };
 }
 
@@ -170,6 +199,19 @@ function curve(points, radius, color) {
   const path = new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p)));
   const g = new THREE.TubeGeometry(path, Math.max(64, points.length * 6), radius, 8, false);
   return new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color, roughness: 0.6 }));
+}
+
+// A text label at a 3-D point (muted, small).
+// `align: "right"` puts the text to the left of the point, ending just before it.
+function label(text, p, { align = "right" } = {}) {
+  const div = document.createElement("div");      // positioned by CSS2DRenderer
+  const span = document.createElement("span");    // offset inside it
+  span.textContent = text;
+  span.style.cssText = `display:inline-block;color:${css("--ink-2")};font-size:12px;white-space:nowrap;` +
+    (align === "right" ? "transform:translateX(calc(-50% - 10px));" : "transform:translateX(calc(50% + 10px));");
+  div.appendChild(span);
+  const o = new CSS2DObject(div); o.position.set(...p);
+  return o;
 }
 
 function ball(p, radius, color) {

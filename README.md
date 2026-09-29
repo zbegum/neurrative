@@ -53,7 +53,7 @@ arc/                step 3  the narrative arc
 arc_on_surface/     step 4  the arc lifted onto the landscape, and geodesics
 
 docs/figures/       curated figures with captions
-docs/interactive/   three interactive pages: story map, surface lab, arc in 3-D
+docs/interactive/   three interactive pages: story map, mood surface, arc in 3-D
 site/               a pipeline reference page generated from the code
 ```
 
