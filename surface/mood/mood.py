@@ -14,6 +14,11 @@ all book, others near 0.
 import numpy as np
 
 SPECTRUM = ["sadness", "danger", "confusion", "curiosity", "wonder", "humor"]
+# One colour per emotion, used wherever an emotion is drawn.
+EMOTION_COLOR = {
+    "sadness": "#3b6fb0", "danger": "#c0392b", "confusion": "#8e44ad",
+    "curiosity": "#16a085", "wonder": "#e0a90a", "humor": "#e6673a",
+}
 BLENDS = ("banded", "softmax", "dominant", "project", "pc1")
 
 

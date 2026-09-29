@@ -8,7 +8,9 @@ Gaussian surface is fitted to them over the PCA plane (surface.py), and the arc
 of 40-paragraph windows is drawn on that surface: every point of the curve sits
 at the surface's height where the story is. The vertical axis is labelled with
 the emotions at their places on the spectrum. The text and the mood over
-reading order sit beside and below.
+reading order sit beside and below. Colour follows the emotion everywhere: the
+surface, the axis, the timeline and the current paragraph take the colour of the
+emotion at their place on the spectrum (mood.EMOTION_COLOR).
 
 Example:
 
@@ -50,6 +52,8 @@ def book_data(book, model, blend, h):
   data.update({
     "timeline": V.rounded(V.gaussian_filter1d(m, V.TIMELINE_SIGMA, mode="nearest")),
     "order": order, "positions": [float(p) for p in positions],
+    "colors": [mood_mod.EMOTION_COLOR[e] for e in order],
+    "mood": V.rounded(m),
     "n": len(gx), "extent": extent,
     "support": V.rounded(V.footprint(X, gx, gy), 2),
     "field": V.rounded(height_at(Q)),

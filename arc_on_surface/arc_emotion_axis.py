@@ -54,17 +54,12 @@ from smooth_common import load_pca
 from geometry.smoothers import nadaraya_watson
 from arc_on_surface import window_bounds, build_surface, surface_at
 # One definition of mood for the whole repository: surface/mood/mood.py.
-from surface.mood.mood import SPECTRUM, normalizer, softmax_position as mood
+from surface.mood.mood import EMOTION_COLOR, SPECTRUM, normalizer, softmax_position as mood
 
 # Valence order, heavy/negative (bottom) to light/positive (top). Adjustable via
 # --order; anything not named is appended so the run never silently drops one.
 DEFAULT_ORDER = SPECTRUM
 
-# A distinct hue per emotion for the dominant-emotion marker color.
-EMOTION_COLOR = {
-  "sadness": "#3b6fb0", "danger": "#c0392b", "confusion": "#8e44ad",
-  "curiosity": "#16a085", "wonder": "#e0a90a", "humor": "#e6673a",
-}
 
 
 def nan_blur(a, sigma):

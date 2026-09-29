@@ -7,6 +7,8 @@
 <style>
 __CSS__
 body { display: grid; grid-template-rows: auto 1fr 96px; height: 100vh; }
+.read .mood { color: var(--ink-2); font-size: 13px; margin: -6px 0 12px; }
+.read .mood i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
 main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); min-height: 0; }
 @media (max-width: 760px) {
   body { grid-template-rows: auto auto auto 80px; height: auto; min-height: 100vh; }
@@ -20,7 +22,7 @@ __HEAD_LIBS__
 <header><select id="book"></select></header>
 <main>
   <div class="stage" id="stage"></div>
-  <div class="read"><div class="chapter" id="chapter"></div><div class="text" id="text"></div></div>
+  <div class="read"><div class="chapter" id="chapter"></div><div class="mood" id="mood"></div><div class="text" id="text"></div></div>
 </main>
 <svg id="timeline" class="timeline"></svg>
 <script type="module">
@@ -30,6 +32,8 @@ const DATA = __DATA__;
 const H = 0.8;   // world height of mood = 1 (humor); mood = 0 is sadness
 const S = { book: Object.keys(DATA.books)[0], i: 0 };
 const book = () => DATA.books[S.book];
+// the colour of a mood value: the emotions' colours at their spectrum positions, blended
+const moodColor = () => d3.scaleLinear(book().positions, book().colors).interpolate(d3.interpolateLab).clamp(true);
 for (const [k, b] of Object.entries(DATA.books)) $("book").add(new Option(b.title, k));
 $("book").onchange = (e) => { S.book = e.target.value; S.i = 0; draw(); };
 
@@ -41,8 +45,7 @@ let arc = [], ground = null, marker = null, trav = null;
 function draw() {
   const b = book(), F = Frame(b.extent), f = b.field;
   scene.clear(); trav = null;
-  const inside = f.filter((v, k) => v !== null && b.support[k] >= 1);
-  ground = terrain(f, b.n, b.extent, { height: (v) => v * H, lo: d3.min(inside), hi: d3.max(inside),
+  ground = terrain(f, b.n, b.extent, { height: (v) => v * H, color: moodColor(),
                                        keep: (k) => b.support[k] >= 1 });
   scene.group.add(ground);
   // the emotion axis, standing just left of the terrain as the starting camera sees
@@ -52,17 +55,17 @@ function draw() {
   scene.group.add(curve([[corner[0], 0, corner[2]], [corner[0], H, corner[2]]], 0.0025, css("--arc")));
   b.order.forEach((name, j) => {
     const y = b.positions[j] * H;
-    scene.group.add(label(name, [corner[0], y, corner[2]]));
+    scene.group.add(label(name, [corner[0], y, corner[2]], { dot: b.colors[j] }));
   });
   // the arc on the surface
   arc = denseArc(b.arc).map(([x, y, c]) => {
     const v = sample(f, b.n, b.extent, x, y);
     return [F.X(x), (Number.isFinite(v) ? v : 0) * H + 0.006, F.Z(y), c];
   });
-  scene.group.add(curve(arc.map((p) => p.slice(0, 3)), 0.0016, css("--arc")));
-  marker = ball([0, 0, 0], 0.015, css("--marker"));
+  scene.group.add(curve(arc.map((p) => p.slice(0, 3)), 0.0016, css("--ink-3")));
+  marker = ball([0, 0, 0], 0.016, css("--ink"));
   scene.group.add(marker);
-  tl.draw(b.timeline, b.chapter);
+  tl.draw(b.timeline, b.chapter, b.positions.map((p, j) => [p, b.colors[j]]));
   go(S.i);
 }
 
@@ -88,6 +91,8 @@ function go(i) {
   scene.request();
   tl.set(S.i);
   setText(b, S.i, $("chapter"), $("text"));
+  const e = d3.minIndex(b.positions, (p) => Math.abs(p - b.mood[S.i]));
+  $("mood").innerHTML = `<i style="background:${b.colors[e]}"></i>${b.order[e]}`;
   history.replaceState(null, "", `#${S.book}/${S.i}`);
 }
 readingKeys(() => S.i, () => book().text.length, go);
