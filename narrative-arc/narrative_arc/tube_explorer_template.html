@@ -1,0 +1,602 @@
+<meta charset="utf-8">
+<title>Narrative Tube Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f4f4f7;
+    --surface: #ffffff;
+    --ink: #1a1823;
+    --muted: #6b6878;
+    --rule: #dedce5;
+    --accent: #4c2fb8;
+    --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0f0e14; --surface: #17151f; --ink: #eceaf3; --muted: #9c98ab;
+      --rule: #2b2836; --accent: #b9a6ff; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0f0e14; --surface: #17151f; --ink: #eceaf3; --muted: #9c98ab;
+    --rule: #2b2836; --accent: #b9a6ff; color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font: 14px/1.5 var(--sans); padding-inline: 20px; padding-block: 28px 40px;
+  }
+  .page { max-width: 1160px; margin-inline: auto; display: grid; gap: 16px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 20px; }
+  h1 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+  .stats { font: 12px/1.5 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 12px 14px; align-items: end; }
+  .field { display: grid; gap: 4px; }
+  .field > label, .field > .label {
+    font: 500 10.5px/1 var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+  }
+  select {
+    appearance: none; font: 13px/1.2 var(--sans); color: var(--ink);
+    background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238a8797' stroke-width='1.4'/%3E%3C/svg%3E") no-repeat right 10px center;
+    border: 1px solid var(--rule); border-radius: 6px; padding: 7px 30px 7px 10px; min-width: 0; cursor: pointer;
+  }
+  select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  option:disabled { color: var(--muted); }
+  .range { display: flex; align-items: center; gap: 8px; height: 33px; }
+  .range input { width: 120px; accent-color: var(--accent); margin: 0; }
+  .range output { font: 12px/1 var(--mono); color: var(--muted); min-width: 3.5ch; font-variant-numeric: tabular-nums; }
+  .toggles { display: flex; flex-wrap: wrap; gap: 4px 16px; height: 33px; align-items: center; }
+  .check { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+  .check input { accent-color: var(--accent); margin: 0; }
+
+  .view {
+    position: relative; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px;
+    height: min(640px, 80vw); min-height: 340px;
+  }
+  .plot { position: absolute; inset: 0; }
+  .corner {
+    position: absolute; left: 14px; top: 11px; z-index: 2; pointer-events: none;
+    font: 500 10.5px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+  }
+  .notice { position: absolute; inset: 0; display: grid; place-items: center; z-index: 3; color: var(--muted); padding: 20px; text-align: center; }
+
+  .reader { display: grid; gap: 10px; }
+  .scrub { display: flex; align-items: center; gap: 14px; }
+  .scrub input { flex: 1; accent-color: var(--accent); margin: 0; }
+  .where { font: 12px/1.4 var(--mono); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .meta { font-size: 13px; font-weight: 500; }
+  .meta span { color: var(--muted); font-weight: 400; }
+  blockquote { margin: 0; max-width: 72ch; color: var(--muted); font-size: 13.5px; min-height: 3em; }
+  .key { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font: 11.5px/1 var(--mono); color: var(--muted); }
+  .ramp { width: 140px; height: 8px; border-radius: 2px; }
+  .swatch { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  footer { font-size: 12.5px; color: var(--muted); max-width: 84ch; display: grid; gap: 6px; }
+  footer b { color: var(--ink); font-weight: 500; }
+  @media (max-width: 700px) { .where { white-space: normal; } .range input { width: 96px; } }
+</style>
+
+<div class="page">
+  <header>
+    <h1>Narrative Tube Explorer</h1>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div class="controls">
+    <div class="field"><label for="book">Book</label><select id="book"></select></div>
+    <div class="field"><label for="model">Embedding model</label><select id="model"></select></div>
+    <div class="field"><label for="method">Projection</label><select id="method">
+      <option value="pca">PCA</option><option value="umap">UMAP</option><option value="tsne">t-SNE</option>
+    </select></div>
+    <div class="field"><label for="size">Window</label><select id="size"></select></div>
+    <div class="field"><label for="stride">Step</label><select id="stride"></select></div>
+    <div class="field"><label for="section">Cross-section</label><select id="section">
+      <option value="emotions">Emotions</option>
+      <option value="normalized">Emotions, each to its own range</option>
+      <option value="spread">Paragraph spread (PCA)</option>
+    </select></div>
+  </div>
+
+  <div class="controls">
+    <div class="field"><label for="color">Surface color</label><select id="color">
+      <option value="emotion">By emotion</option><option value="order">Reading order</option>
+    </select></div>
+    <div class="field"><label for="thick">Thickness</label>
+      <div class="range"><input type="range" id="thick" min="0.25" max="2.5" step="0.05" value="1"><output id="thickOut">1.00×</output></div></div>
+    <div class="field"><label for="smooth">Smoothing</label>
+      <div class="range"><input type="range" id="smooth" min="0" max="4" step="0.25" value="1"><output id="smoothOut">1 win</output></div></div>
+    <div class="field"><span class="label">Show</span>
+      <div class="toggles">
+        <label class="check" for="rounded"><input type="checkbox" id="rounded"> Rounded</label>
+        <label class="check" for="rings"><input type="checkbox" id="rings" checked> Sections</label>
+        <label class="check" for="points"><input type="checkbox" id="points" checked> Windows</label>
+      </div></div>
+  </div>
+
+  <div class="view">
+    <div class="corner" id="corner"></div>
+    <div class="plot" id="plot"></div>
+    <div class="notice" id="notice" hidden></div>
+  </div>
+
+  <div class="reader">
+    <div class="scrub">
+      <input type="range" id="position" min="0" max="0" value="0" aria-label="Reading position">
+      <span class="where" id="where"></span>
+    </div>
+    <div class="meta" id="meta"></div>
+    <blockquote id="snippet"></blockquote>
+    <div class="key" id="key"></div>
+  </div>
+
+  <footer>
+    <div>The curve is the story's path through embedding space, fitted through <b>windows</b> of consecutive paragraphs
+      (dots), from <b>O</b> to <b>X</b>. Every window has a <b>cross-section</b>: one corner per emotion, further out the
+      stronger it is — or, for paragraph spread, how scattered that window's paragraphs are around the curve. The sections
+      are joined smoothly in reading order.</div>
+    <div>Where the curve bends tighter than the tube is thick, the whole tube is scaled down by one factor and only the
+      sharpest bends are narrowed further, so thickness stays comparable along the story. The header reports both.</div>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/3.5.1/plotly-gl3d.min.js"></script>
+<script id="tube-data" type="application/json">/*__TUBE_DATA__*/null</script>
+<script>
+(function () {
+  const DATA = JSON.parse(document.getElementById("tube-data").textContent);
+  const $ = (id) => document.getElementById(id);
+  const S = DATA.samples;
+  const SIZES = [10, 20, 40, 80];
+  const STRIDES = { quarter: 0.25, half: 0.5, full: 1 };
+  const STRIDE_NAMES = { quarter: "quarter window", half: "half window", full: "no overlap" };
+  const METHOD_NAMES = { pca: "PCA", umap: "UMAP", tsne: "t-SNE" };
+  const PLASMA = ["#0d0887", "#6a00a8", "#b12a90", "#e16462", "#fca636", "#f0f921"];
+  const EMOTION_BASE = 0.35;   // largest emotion radius, as a fraction of layout RMS radius
+  const CORE = 0.15;           // radius left at score 0
+  const FOLD_LIMIT = 0.9, COVERAGE = 0.95, ROUND_TO = 36;
+  const CONFIG = { responsive: true, displayModeBar: false };
+
+  const state = { book: null, model: null, method: "pca", size: 40, stride: "half",
+                  section: "emotions", color: "emotion", thick: 1, smooth: 1,
+                  rounded: false, rings: true, points: true, index: 0 };
+  let geo = null, tube = null;
+
+  // ---------------------------------------------------------------- controls
+  function fill(select, options, value) {
+    select.innerHTML = "";
+    for (const [v, label, disabled] of options) {
+      const o = document.createElement("option");
+      o.value = v; o.textContent = label; o.disabled = !!disabled; select.appendChild(o);
+    }
+    select.value = value;
+  }
+  const books = Object.keys(DATA.books);
+  state.book = books.includes("alice_wonderland") ? "alice_wonderland" : books[0];
+  fill($("book"), books.map((b) => [b, DATA.books[b].title]), state.book);
+  fill($("size"), SIZES.map((s) => [s, `${s} paragraphs`]), state.size);
+
+  function syncControls() {
+    const models = DATA.models[state.book];
+    if (!models.includes(state.model)) state.model = models.includes("bge-m3") ? "bge-m3" : models[0];
+    fill($("model"), models.map((m) => [m, m]), state.model);
+    fill($("stride"), Object.keys(STRIDES).map((k) =>
+      [k, `${Math.max(1, Math.round(state.size * STRIDES[k]))} (${STRIDE_NAMES[k]})`]), state.stride);
+
+    const hasScores = Object.keys(DATA.books[state.book].scores).length > 0;
+    const pca = state.method === "pca";
+    if (!hasScores && state.section !== "spread") state.section = "spread";
+    if (!pca && state.section === "spread") state.section = hasScores ? "emotions" : "spread";
+    fill($("section"), [
+      ["emotions", hasScores ? "Emotions" : "Emotions (no scores)", !hasScores],
+      ["normalized", "Emotions, each to its own range", !hasScores],
+      ["spread", pca ? "Paragraph spread (PCA)" : "Paragraph spread (PCA only)", !pca],
+    ], state.section);
+
+    const emotional = state.section !== "spread";
+    if (!emotional) state.color = "order";
+    fill($("color"), [["emotion", "By emotion", !emotional], ["order", "Reading order"]], state.color);
+    $("method").value = state.method;
+  }
+
+  for (const id of ["book", "model", "method", "size", "stride", "section", "color"]) {
+    $(id).addEventListener("change", (e) => {
+      const frac = geo && geo.n > 1 ? state.index / (geo.n - 1) : 0;
+      state[id] = id === "size" ? Number(e.target.value) : e.target.value;
+      syncControls();
+      load(frac);
+    });
+  }
+  $("thick").addEventListener("input", (e) => { state.thick = Number(e.target.value); schedule(); });
+  $("smooth").addEventListener("input", (e) => { state.smooth = Number(e.target.value); schedule(); });
+  for (const id of ["rounded", "rings", "points"]) {
+    $(id).addEventListener("change", (e) => { state[id] = e.target.checked; schedule(); });
+  }
+  $("position").addEventListener("input", (e) => setIndex(Number(e.target.value)));
+
+  let pending = false;
+  function schedule() {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => { pending = false; rebuild(); });
+  }
+
+  // ---------------------------------------------------------------- numerics
+  const rows = (flat, width) => {
+    const out = [];
+    for (let i = 0; i < flat.length; i += width) out.push(flat.slice(i, i + width));
+    return out;
+  };
+
+  function gaussian1d(values, sigma) {           // mode "nearest", truncate 4 sigma
+    if (!(sigma > 0)) return values.slice();
+    const r = Math.ceil(4 * sigma), w = [];
+    let total = 0;
+    for (let i = -r; i <= r; i++) { const v = Math.exp(-0.5 * (i / sigma) ** 2); w.push(v); total += v; }
+    const n = values.length;
+    return values.map((_, i) => {
+      let acc = 0;
+      for (let j = -r; j <= r; j++) acc += w[j + r] * values[Math.min(n - 1, Math.max(0, i + j))];
+      return acc / total;
+    });
+  }
+
+  function pchipColumn(x, y, xq) {                // Fritsch-Carlson, as scipy's PchipInterpolator
+    const n = x.length;
+    if (n === 1) return xq.map(() => y[0]);
+    const h = [], d = [];
+    for (let i = 0; i < n - 1; i++) { h.push(x[i + 1] - x[i]); d.push((y[i + 1] - y[i]) / h[i]); }
+    const m = new Array(n).fill(0);
+    if (n === 2) { m[0] = m[1] = d[0]; }
+    else {
+      for (let i = 1; i < n - 1; i++) {
+        if (d[i - 1] * d[i] <= 0) continue;
+        const w1 = 2 * h[i] + h[i - 1], w2 = h[i] + 2 * h[i - 1];
+        m[i] = (w1 + w2) / (w1 / d[i - 1] + w2 / d[i]);
+      }
+      const edge = (h0, h1, d0, d1) => {
+        let v = ((2 * h0 + h1) * d0 - h0 * d1) / (h0 + h1);
+        if (Math.sign(v) !== Math.sign(d0)) v = 0;
+        else if (Math.sign(d0) !== Math.sign(d1) && Math.abs(v) > Math.abs(3 * d0)) v = 3 * d0;
+        return v;
+      };
+      m[0] = edge(h[0], h[1], d[0], d[1]);
+      m[n - 1] = edge(h[n - 2], h[n - 3], d[n - 2], d[n - 3]);
+    }
+    let k = 0;
+    return xq.map((t) => {
+      t = Math.min(x[n - 1], Math.max(x[0], t));
+      while (k < n - 2 && t > x[k + 1]) k++;
+      while (k > 0 && t < x[k]) k--;
+      const hk = h[k], s = (t - x[k]) / hk, s2 = s * s, s3 = s2 * s;
+      return (2 * s3 - 3 * s2 + 1) * y[k] + (s3 - 2 * s2 + s) * hk * m[k]
+           + (-2 * s3 + 3 * s2) * y[k + 1] + (s3 - s2) * hk * m[k + 1];
+    });
+  }
+
+  function sweep(frac, radii, sigma) {             // (n,k) window radii -> (S,k)
+    const k = radii[0].length, n = radii.length;
+    const cols = [];
+    for (let j = 0; j < k; j++) cols.push(gaussian1d(radii.map((r) => r[j]), sigma));
+    const knots = [], sums = [], counts = [];      // average windows sharing a position
+    for (let i = 0; i < n; i++) {
+      const last = knots.length - 1;
+      if (last >= 0 && Math.abs(frac[i] - knots[last]) < 1e-9) {
+        for (let j = 0; j < k; j++) sums[last][j] += cols[j][i];
+        counts[last]++;
+      } else {
+        knots.push(frac[i]); sums.push(cols.map((c) => c[i])); counts.push(1);
+      }
+    }
+    const values = sums.map((row, i) => row.map((v) => v / counts[i]));
+    const tau = Array.from({ length: S }, (_, i) => i / (S - 1));
+    const out = Array.from({ length: S }, () => new Array(k));
+    for (let j = 0; j < k; j++) {
+      const col = pchipColumn(knots, values.map((r) => r[j]), tau);
+      for (let s = 0; s < S; s++) out[s][j] = Math.max(0, col[s]);
+    }
+    return out;
+  }
+
+  function roundSections(radii, m) {             // periodic Catmull-Rom, k -> m
+    const k = radii[0].length;
+    return radii.map((r) => Array.from({ length: m }, (_, j) => {
+      const t = (j * k) / m, i = Math.floor(t), u = t - i;
+      const p0 = r[(i - 1 + k) % k], p1 = r[i % k], p2 = r[(i + 1) % k], p3 = r[(i + 2) % k];
+      const v = 0.5 * (2 * p1 + (-p0 + p2) * u + (2 * p0 - 5 * p1 + 4 * p2 - p3) * u * u
+                       + (-p0 + 3 * p1 - 3 * p2 + p3) * u * u * u);
+      return Math.max(0, v);
+    }));
+  }
+
+  function limitFolding(radii, bend) {
+    const ratio = radii.map((r, s) => (FOLD_LIMIT * bend[s]) / Math.max(1e-12, Math.max(...r)));
+    const sorted = ratio.slice().sort((a, b) => a - b);
+    const q = (1 - COVERAGE) * (S - 1), lo = Math.floor(q), f = q - lo;
+    const scale = Math.min(1, sorted[lo] * (1 - f) + sorted[Math.min(S - 1, lo + 1)] * f);
+    let local = ratio.map((v) => Math.min(1, v / scale));
+    const width = Math.max(3, Math.floor(S / 100));
+    const runMin = local.map((_, i) => {
+      let v = Infinity;
+      for (let j = i - width; j <= i + width; j++) v = Math.min(v, local[Math.min(S - 1, Math.max(0, j))]);
+      return v;
+    });
+    const blurred = gaussian1d(runMin, width / 2);
+    local = local.map((v, i) => Math.min(v, blurred[i]));
+    const clamped = local.filter((v) => v < 0.999).length / S;
+    return { radii: radii.map((r, s) => r.map((v) => v * scale * local[s])), scale, clamped };
+  }
+
+  // ---------------------------------------------------------------- geometry
+  function load(frac) {
+    const book = DATA.books[state.book];
+    const key = `${state.size}:${state.stride}`;
+    const win = book.windows[key];
+    const proj = DATA.projections[`${state.book}|${state.model}|${key}`][state.method];
+    const n = win.starts.length;
+    geo = { book, win, proj, n, key, error: proj.error || null };
+    if (!geo.error) {
+      geo.xyz = rows(proj.xyz, 3);
+      geo.curve = rows(proj.curve, 3);
+      geo.N = rows(proj.N, 3);
+      geo.B = rows(proj.B, 3);
+      geo.index = proj.frac.map((f) => Math.round(f * (S - 1)));
+    }
+    state.index = Math.round(frac * (n - 1));
+    $("position").max = n - 1;
+    $("position").value = state.index;
+    rebuild();
+  }
+
+  function windowRadii() {
+    const { proj, book, key } = geo;
+    if (state.section === "spread") return rows(proj.spread, 12).map((r) => r.map((v) => v * state.thick));
+    const E = book.emotions.length - 1;  // the last entry is "unclear"
+    const scores = rows(book.scores[key], E);
+    let s = scores;
+    if (state.section === "normalized") {
+      const lo = [], hi = [];
+      for (let j = 0; j < E; j++) {
+        const col = scores.map((r) => r[j]);
+        lo.push(Math.min(...col)); hi.push(Math.max(...col));
+      }
+      s = scores.map((r) => r.map((v, j) => (hi[j] > lo[j] ? (v - lo[j]) / (hi[j] - lo[j]) : 0)));
+    }
+    const unit = EMOTION_BASE * state.thick * proj.rms;
+    return s.map((r) => r.map((v) => unit * (CORE + (1 - CORE) * v)));
+  }
+
+  const faceCache = {};
+  function faces(m) {
+    const key = `${S}:${m}`;
+    if (faceCache[key]) return faceCache[key];
+    const I = [], J = [], K = [];
+    for (let s = 0; s < S - 1; s++) {
+      for (let j = 0; j < m; j++) {
+        const a = s * m + j, b = a + m, a2 = s * m + ((j + 1) % m), b2 = a2 + m;
+        I.push(a, a); J.push(b, b2); K.push(b2, a2);
+      }
+    }
+    const start = S * m, end = S * m + 1;
+    for (let j = 0; j < m; j++) {
+      const j2 = (j + 1) % m;
+      I.push(start); J.push(j2); K.push(j);
+      I.push(end); J.push((S - 1) * m + j); K.push((S - 1) * m + j2);
+    }
+    return (faceCache[key] = { I, J, K });
+  }
+
+  function lerpHex(stops, f) {
+    const x = Math.min(0.9999, Math.max(0, f)) * (stops.length - 1), i = Math.floor(x), u = x - i;
+    const rgb = (h) => [1, 3, 5].map((c) => parseInt(h.slice(c, c + 2), 16));
+    const a = rgb(stops[i]), b = rgb(stops[i + 1]);
+    return a.map((v, c) => Math.round(v + (b[c] - v) * u));
+  }
+
+  function rebuild() {
+    const t = tokens();
+    if (geo.error) {
+      Plotly.purge($("plot"));
+      $("notice").hidden = false;
+      $("notice").textContent = `${METHOD_NAMES[state.method]} could not run on ${geo.n} windows. Try a smaller window or step.`;
+      text();
+      return;
+    }
+    $("notice").hidden = true;
+
+    const radii = windowRadii();
+    const k = radii[0].length;
+    let swept = sweep(geo.proj.frac, radii, state.smooth);
+    const m = state.rounded ? ROUND_TO : k;
+    if (state.rounded) swept = roundSections(swept, ROUND_TO);
+    const folded = limitFolding(swept, geo.proj.bend);
+    swept = folded.radii;
+
+    const angles = Array.from({ length: m }, (_, j) => (2 * Math.PI * j) / m);
+    const cos = angles.map(Math.cos), sin = angles.map(Math.sin);
+    const X = [], Y = [], Z = [], C = [];
+    const emotionHues = state.color === "emotion" && state.section !== "spread"
+      ? geo.book.emotions.slice(0, k).map((e) => lerpHex([e.color, e.color], 0)) : null;
+
+    for (let s = 0; s < S; s++) {
+      const c = geo.curve[s], N = geo.N[s], B = geo.B[s];
+      const along = emotionHues ? null : lerpHex(PLASMA, s / (S - 1));
+      for (let j = 0; j < m; j++) {
+        const r = swept[s][j];
+        X.push(c[0] + r * (cos[j] * N[0] + sin[j] * B[0]));
+        Y.push(c[1] + r * (cos[j] * N[1] + sin[j] * B[1]));
+        Z.push(c[2] + r * (cos[j] * N[2] + sin[j] * B[2]));
+        let rgb = along;
+        if (emotionHues) {
+          const x = (j / m) * k, i = Math.floor(x), u = x - i;
+          const p = emotionHues[i % k], q = emotionHues[(i + 1) % k];
+          rgb = p.map((v, ch) => Math.round(v + (q[ch] - v) * u));
+        }
+        C.push(`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`);
+      }
+    }
+    for (const c of [geo.curve[0], geo.curve[S - 1]]) { X.push(c[0]); Y.push(c[1]); Z.push(c[2]); C.push("rgb(150,148,160)"); }
+    tube = { swept, m, cos, sin, ...folded };
+
+    const { I, J, K } = faces(m);
+    const traces = [{
+      type: "mesh3d", x: X, y: Y, z: Z, i: I, j: J, k: K, vertexcolor: C,
+      flatshading: false, hoverinfo: "skip", opacity: 1,
+      lighting: { ambient: 0.55, diffuse: 0.7, specular: 0.12, roughness: 0.75, fresnel: 0.1 },
+      lightposition: { x: 100, y: -200, z: 300 },
+    }];
+
+    if (state.rings) {
+      const xs = [], ys = [], zs = [];
+      for (const s of geo.index) {
+        const loop = ring(s, 1.015);
+        for (const p of loop) { xs.push(p[0]); ys.push(p[1]); zs.push(p[2]); }
+        xs.push(null); ys.push(null); zs.push(null);
+      }
+      traces.push({ type: "scatter3d", mode: "lines", x: xs, y: ys, z: zs, hoverinfo: "skip",
+                    line: { color: t.ringColor, width: 1.5 } });
+    }
+
+    const xyz = geo.xyz;
+    traces.push({ type: "scatter3d", mode: "markers", x: xyz.map((p) => p[0]), y: xyz.map((p) => p[1]),
+                  z: xyz.map((p) => p[2]), customdata: xyz.map((_, i) => i), hoverinfo: "none",
+                  visible: state.points, marker: { size: 2.6, color: t.ink, opacity: 0.8 } });
+    for (const [i, label, symbol] of [[0, "O", "circle-open"], [geo.n - 1, "X", "x"]]) {
+      traces.push({ type: "scatter3d", mode: "markers+text", x: [xyz[i][0]], y: [xyz[i][1]], z: [xyz[i][2]],
+                    text: [label], textposition: "top center", hoverinfo: "skip",
+                    textfont: { family: t.mono, size: 13, color: t.ink },
+                    marker: { size: 7, symbol, color: t.ink, line: { color: t.ink, width: 2 } } });
+    }
+    const hi = highlight(t);
+    traces.push(hi.ring, hi.point);
+
+    const labels = geo.proj.labels;
+    const axis = (label) => ({ title: { text: label, font: { family: t.mono, size: 11, color: t.muted } },
+                               gridcolor: t.rule, zeroline: false, showbackground: false, color: t.muted,
+                               tickfont: { family: t.mono, size: 10, color: t.muted }, showspikes: false });
+    Plotly.react($("plot"), traces, {
+      paper_bgcolor: "rgba(0,0,0,0)", showlegend: false, uirevision: `${state.book}|${state.method}`,
+      margin: { l: 0, r: 0, t: 0, b: 0 }, font: { family: t.sans, color: t.ink },
+      scene: { xaxis: axis(labels[0]), yaxis: axis(labels[1]), zaxis: axis(labels[2]), aspectmode: "data",
+               camera: { eye: { x: 0.85, y: -0.95, z: 0.55 } } },
+    }, CONFIG);
+    bindHover();
+
+    $("corner").textContent = `${METHOD_NAMES[state.method]} · drag to rotate`;
+    $("thickOut").textContent = `${state.thick.toFixed(2)}×`;
+    $("smoothOut").textContent = state.smooth === 0 ? "off" : `${state.smooth} win`;
+    stats();
+    text();
+  }
+
+  function ring(s, lift) {
+    const c = geo.curve[s], N = geo.N[s], B = geo.B[s], r = tube.swept[s], pts = [];
+    for (let j = 0; j <= tube.m; j++) {
+      const jj = j % tube.m, rr = r[jj] * lift;
+      pts.push([0, 1, 2].map((d) => c[d] + rr * (tube.cos[jj] * N[d] + tube.sin[jj] * B[d])));
+    }
+    return pts;
+  }
+
+  function highlight(t) {
+    const loop = ring(geo.index[state.index], 1.06);
+    const p = geo.xyz[state.index];
+    return {
+      ring: { type: "scatter3d", mode: "lines", x: loop.map((q) => q[0]), y: loop.map((q) => q[1]),
+              z: loop.map((q) => q[2]), hoverinfo: "skip", line: { color: t.accent, width: 6 } },
+      point: { type: "scatter3d", mode: "markers", x: [p[0]], y: [p[1]], z: [p[2]], hoverinfo: "skip",
+               marker: { size: 6, color: t.accent, symbol: "circle" } },
+    };
+  }
+
+  function bindHover() {
+    const el = $("plot");
+    if (el.dataset.bound) return;
+    el.dataset.bound = "1";
+    el.on("plotly_hover", (e) => {
+      const pt = e.points.find((q) => q.customdata !== undefined);
+      if (pt) setIndex(pt.customdata);
+    });
+  }
+
+  function setIndex(i) {
+    state.index = i;
+    $("position").value = i;
+    if (!geo.error && tube) {
+      const el = $("plot"), hi = highlight(tokens()), last = el.data.length;
+      Plotly.restyle(el, { x: [hi.ring.x, hi.point.x], y: [hi.ring.y, hi.point.y], z: [hi.ring.z, hi.point.z] },
+                     [last - 2, last - 1]);
+    }
+    text();
+  }
+
+  // ---------------------------------------------------------------- text
+  function tokens() {
+    const css = getComputedStyle(document.documentElement);
+    const v = (name) => css.getPropertyValue(name).trim();
+    const dark = v("--ground").toLowerCase() === "#0f0e14";
+    return { ink: v("--ink"), muted: v("--muted"), rule: v("--rule"), accent: v("--accent"),
+             sans: v("--sans"), mono: v("--mono"),
+             ringColor: dark ? "rgba(236,234,243,0.45)" : "rgba(26,24,35,0.45)" };
+  }
+
+  function stats() {
+    const step = Math.max(1, Math.round(state.size * STRIDES[state.stride]));
+    const parts = [`${geo.n} windows`, `${state.size} ¶ each, step ${step}`];
+    if (!geo.error) {
+      parts.push(`centerline ${geo.proj.n_control} control pts`);
+      parts.push(`tube ×${tube.scale.toFixed(2)}, ${Math.round(tube.clamped * 100)}% narrowed at bends`);
+    }
+    $("stats").textContent = parts.join("  ·  ");
+  }
+
+  function text() {
+    const { book, win, n } = geo, i = state.index;
+    $("where").textContent = `window ${i + 1} / ${n}`;
+    const meta = $("meta");
+    meta.textContent = `¶ ${win.starts[i] + 1}–${win.stops[i]}`;
+    const extra = document.createElement("span");
+    let tail = book.chapters[String(win.chapter[i])] ? `  ·  ${book.chapters[String(win.chapter[i])]}` : "";
+    const key = geo.key;
+    if (book.scores[key]) {
+      const E = book.emotions.length - 1;
+      const scores = book.scores[key].slice(i * E, i * E + E);
+      const top = scores.map((v, j) => [v, book.emotions[j].name]).sort((a, b) => b[0] - a[0]).slice(0, 3);
+      tail += "  ·  " + top.map(([v, name]) => `${name} ${v.toFixed(2)}`).join(", ");
+    }
+    extra.textContent = tail;
+    meta.append(extra);
+    $("snippet").textContent = book.text[String(win.mid[i])] || "";
+
+    const keyEl = $("key");
+    keyEl.innerHTML = "";
+    if (state.color === "emotion" && state.section !== "spread") {
+      keyEl.append("corners, in order around the section:");
+      book.emotions.slice(0, -1).forEach((e) => {
+        const s = document.createElement("span");
+        s.className = "swatch";
+        s.innerHTML = `<i style="background:${e.color}"></i>`;
+        s.append(e.name);
+        keyEl.appendChild(s);
+      });
+    } else {
+      const ramp = document.createElement("span");
+      ramp.className = "ramp";
+      ramp.style.background = `linear-gradient(90deg, ${PLASMA.join(", ")})`;
+      keyEl.append("opening", ramp, "ending");
+    }
+  }
+
+  const rerender = () => geo && rebuild();
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerender);
+  new MutationObserver(rerender).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  syncControls();
+  load(0);
+})();
+</script>
