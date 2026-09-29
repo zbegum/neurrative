@@ -39,7 +39,7 @@ if (Object.keys(DATA.books).length < 2) $("book").style.display = "none";
 $("book").onchange = (e) => { S.book = e.target.value; S.i = 0; draw(); };
 $("axes").onclick = () => {
   S.axes = !S.axes; $("axes").setAttribute("aria-pressed", S.axes);
-  showAxes(scene.group, S.axes); scene.request();
+  showAxes(scene.group, S.axes && !rider.riding); scene.request();
 };
 
 const scene = Scene($("stage")), rider = Rider(scene);
@@ -47,7 +47,8 @@ let rideTrack = null;
 $("ride").onclick = () => {
   rider.riding ? rider.off() : rider.on();
   $("ride").setAttribute("aria-pressed", rider.riding);
-  go(S.i);
+  showAxes(scene.group, S.axes && !rider.riding);    // no axes floating in the ride view
+  go(S.pos ?? S.i);
 };
 scene.controls.target.set(0, 0.3, 0);
 scene.renderer.domElement.addEventListener("dblclick", pick);
@@ -55,7 +56,7 @@ let arc = [], ground = null, marker = null, trav = null;
 
 function draw() {
   const b = book(), F = Frame(b.extent), f = b.field;
-  scene.clear(); trav = null;
+  scene.clear(); trav = null; S.drawn = null;
   ground = terrain(f, b.n, b.extent, { height: (v) => v * H, color: moodColor(),
                                        keep: (k) => b.support[k] >= 1 });
   scene.group.add(ground);
@@ -70,7 +71,7 @@ function draw() {
     const y = b.positions[j] * H;
     emotionAxis.add(label(name, [corner[0], y, corner[2]], { dot: b.colors[j] }));
   });
-  showAxes(scene.group, S.axes);
+  showAxes(scene.group, S.axes && !rider.riding);
   // the arc on the surface
   arc = denseArc(b.arc).map(([x, y, c]) => {
     const v = sample(f, b.n, b.extent, x, y);
@@ -97,23 +98,27 @@ function pick(ev) {
 
 const tl = Timeline($("timeline"), (i) => go(i));
 function go(i) {
-  const b = book();
-  S.i = Math.max(0, Math.min(b.text.length - 1, i));
-  const j = Math.max(0, d3.bisector((p) => p[3]).left(arc, S.i) - 1);
-  if (trav) { scene.group.remove(trav); trav.geometry.dispose(); trav = null; }
-  if (j > 0) { trav = curve(arc.slice(0, j + 1).map((p) => p.slice(0, 3)), 0.0026, css("--ink")); scene.group.add(trav); }
-  marker.position.set(...arc[j].slice(0, 3));
+  const b = book(), N = b.text.length - 1;
+  S.pos = Math.max(0, Math.min(N, i)); S.i = Math.round(S.pos);
+  const { j, p, u } = onArc(arc, S.pos), key = `${j}/${rider.riding}`;
+  if (key !== S.drawn) {            // the passed part: ink, or reading-order colours when riding
+    if (trav) { scene.group.remove(trav); trav.geometry.dispose(); }
+    trav = passed(arc, j, arc[j].slice(0, 3), N, 0.0026, rider.riding ? null : css("--ink"));
+    if (trav) scene.group.add(trav);
+    S.drawn = key;
+  }
+  marker.position.set(...p);
   marker.visible = !rider.riding;
-  if (trav) trav.visible = !rider.riding;            // riding: only the faint track
-  rider.at(rideTrack, j / (arc.length - 1));
+  rider.at(rideTrack, u);
   scene.request();
-  tl.set(S.i);
+  tl.set(S.pos);
   setText(b, S.i, $("chapter"), $("text"));
-  const e = d3.minIndex(b.positions, (p) => Math.abs(p - b.mood[S.i]));
+  const e = d3.minIndex(b.positions, (q) => Math.abs(q - b.mood[S.i]));
   $("mood").innerHTML = `<i style="background:${b.colors[e]}"></i>${b.order[e]}`;
   publish(`${S.book}/${S.i}`);
 }
-readingKeys(() => S.i, () => book().text.length, go);
+Transport(document.querySelector("header"), { getPos: () => S.pos ?? S.i, getN: () => book().text.length,
+  getChapter: () => book().chapter, go });
 
 // open at #book/paragraph -- on load, and whenever the hash is set
 function fromHash(state) {

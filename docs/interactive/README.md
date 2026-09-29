@@ -22,3 +22,8 @@ view; the story map and the mood surface jump to a paragraph on a click
 Rebuild everything with `python docs/interactive/build.py`: it runs the three
 builders and embeds their pages. Each builder also writes its page on its own,
 into its step's `output/`.
+
+Moving through the book: ‹ and › jump to the previous / next chapter, ▶ plays the
+book continuously (about 90 seconds), and **ride** puts the camera on the arc,
+looking ahead along it, with the part already passed coloured by reading order.
+Keys: arrows step (shift for 20), space plays, [ and ] jump a chapter.

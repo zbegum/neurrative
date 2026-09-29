@@ -55,13 +55,14 @@ $("method").onchange = (e) => { S.method = e.target.value; draw(); };
 $("axes").onclick = () => {
   S.axes = !S.axes; $("axes").setAttribute("aria-pressed", S.axes);
   d3.select("#map2d .axes").style("display", S.axes ? null : "none");
-  if (scene3) { showAxes(scene3.group, S.axes); scene3.request(); }
+  if (scene3) { showAxes(scene3.group, S.axes && !rider?.riding); scene3.request(); }
 };
 $("ride").onclick = () => {
   if (!rider) return;
   rider.riding ? rider.off() : rider.on();
   $("ride").setAttribute("aria-pressed", rider.riding);
-  go(S.i);
+  showAxes(scene3.group, S.axes && !rider.riding);   // no axes floating in the ride view
+  go(S.pos ?? S.i);
 };
 $("dim").onclick = () => {
   if (rider?.riding) $("ride").click();          // leave the ride before leaving 3-D
@@ -132,7 +133,7 @@ function draw3d() {
     rider = Rider(scene3);
     scene3.renderer.domElement.addEventListener("dblclick", pick3d);
   }
-  scene3.clear(); trav3 = null;
+  scene3.clear(); trav3 = null; S.drawnJ = null;
   const b = book(), f = field(), F = Frame(b.extent), [lo, hi] = range(f);
   const h = (v) => lift(v, lo, hi);
   ground = terrain(f, b.n, b.extent, { height: h, lo, hi, keep: (k) => b.support[k] >= 1 });
@@ -141,7 +142,7 @@ function draw3d() {
   scene3.group.add(axes3d(scene3, b.extent, {
     height: RELIEF, title: S.emotion,
     ticks: [lo, (lo + hi) / 2, hi].map((v) => [h(v), fmt(v)]) }));
-  showAxes(scene3.group, S.axes);
+  showAxes(scene3.group, S.axes && !rider?.riding);
   arc3 = denseArc(b.arc).map(([x, y, c]) => {
     const v = sample(f, b.n, b.extent, x, y);
     return [F.X(x), h(Number.isFinite(v) ? v : lo) + 0.006, F.Z(y), c];
@@ -167,30 +168,28 @@ function pick3d(ev) {
 // ---- reading --------------------------------------------------------------------
 const tl = Timeline($("timeline"), (i) => go(i));
 function go(i) {
-  const b = book();
-  S.i = Math.max(0, Math.min(b.text.length - 1, i));
+  const b = book(), N = b.text.length - 1;
+  S.pos = Math.max(0, Math.min(N, i)); S.i = Math.round(S.pos);
   if (S.three) {
-    const j = Math.max(0, d3.bisector((p) => p[3]).left(arc3, S.i) - 1);
-    if (trav3) { scene3.group.remove(trav3); trav3.geometry.dispose(); trav3 = null; }
-    if (j > 0) {
-      const done = arc3.slice(0, j + 1), N = b.text.length - 1;
-      trav3 = curve(done.map((p) => p.slice(0, 3)), 0.0028, null,
-                    { colorAt: (t) => orderAt(done[Math.round(t * (done.length - 1))][3] / N) });
-      scene3.group.add(trav3);
+    const { j, p, u } = onArc(arc3, S.pos);
+    if (j !== S.drawnJ) {                               // rebuild the passed part per segment
+      if (trav3) { scene3.group.remove(trav3); trav3.geometry.dispose(); }
+      trav3 = passed(arc3, j, arc3[j].slice(0, 3), N, 0.0028);
+      if (trav3) scene3.group.add(trav3);
+      S.drawnJ = j;
     }
-    marker3.position.set(...arc3[j].slice(0, 3));
+    marker3.position.set(...p);
     marker3.visible = !rider.riding;
-    if (trav3) trav3.visible = !rider.riding;        // riding: only the faint track
-    rider.at(ride3, j / (arc3.length - 1));
+    rider.at(ride3, u);
     scene3.request();
   } else {
-    const { k, t } = pathAt(b.arc, S.i), P = b.arc;
+    const { k, t } = pathAt(b.arc, S.pos), P = b.arc;
     const p = [P[k][0] + t * (P[k + 1][0] - P[k][0]), P[k][1] + t * (P[k + 1][1] - P[k][1])];
-    d3.selectAll("#map2d .seg").attr("stroke-opacity", (s) => (s[0][2] <= S.i ? 1 : 0.28))
-      .attr("stroke-width", (s) => (s[0][2] <= S.i ? 2.6 : 1.6));
+    d3.selectAll("#map2d .seg").attr("stroke-opacity", (s) => (s[0][2] <= S.pos ? 1 : 0.28))
+      .attr("stroke-width", (s) => (s[0][2] <= S.pos ? 2.6 : 1.6));
     d3.select("#mark").attr("cx", sx(p[0])).attr("cy", sy(p[1]));
   }
-  tl.set(S.i);
+  tl.set(S.pos);
   setText(b, S.i, $("chapter"), $("text"));
   publish(`${S.book}/${S.emotion}/${S.i}${S.three ? "/3d" : ""}`);
 }
@@ -199,7 +198,8 @@ function draw() {
   tl.draw(series(), book().chapter, null, { order: true });
   go(S.i);
 }
-readingKeys(() => S.i, () => book().text.length, go);
+Transport(document.querySelector("header"), { getPos: () => S.pos ?? S.i, getN: () => book().text.length,
+  getChapter: () => book().chapter, go });
 
 // open at #book/emotion/paragraph[/3d] -- on load, and whenever the hash is set
 function fromHash(state) {

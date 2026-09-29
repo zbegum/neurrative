@@ -193,22 +193,65 @@ function follow(apply) {
   window.addEventListener("message", (e) =&gt; { if (typeof e.data?.viewerState === "string") apply(e.data.viewerState); });
 }
 
-// Arrows step (shift: 20), space plays.
-function readingKeys(getI, getN, go) {
-  let playing = null;
+// where position `pos` falls on a dense arc [[x, y, z, centre], ...]: the segment j,
+// the fraction f along it, the point there, and u (0..1) along the whole arc
+function onArc(arc, pos) {
+  const j = Math.max(0, Math.min(arc.length - 2, d3.bisector((p) =&gt; p[3]).left(arc, pos) - 1));
+  const f = Math.max(0, Math.min(1, (pos - arc[j][3]) / ((arc[j + 1][3] - arc[j][3]) || 1)));
+  const p = [0, 1, 2].map((d) =&gt; arc[j][d] + f * (arc[j + 1][d] - arc[j][d]));
+  return { j, f, p, u: (j + f) / (arc.length - 1) };
+}
+// the passed part of an arc as a tube in reading-order colours (or ink), up to point p
+function passed(arc, j, p, N, radius, ink = null) {
+  const pts = arc.slice(0, j + 1).map((q) =&gt; q.slice(0, 3)).concat([p]);
+  if (pts.length &lt; 2) return null;
+  const cs = arc.slice(0, j + 1).map((q) =&gt; q[3]).concat([arc[j][3]]);
+  return ink ? curve(pts, radius, ink)
+    : curve(pts, radius, null, { colorAt: (t) =&gt; orderAt(cs[Math.round(t * (cs.length - 1))] / N) });
+}
+
+// Moving through the book: previous chapter, play / pause, next chapter as three
+// small buttons in `header`, and keys -- arrows step (shift: 20), space plays,
+// [ and ] jump a chapter. Play is continuous: the position (a fractional paragraph)
+// advances every frame, so a ride glides rather than hops; the book takes ~90 s.
+function Transport(header, { getPos, getN, getChapter, go, seconds = 90 }) {
+  const btn = (text, title) =&gt; {
+    const b = document.createElement("button");
+    b.className = "toggle"; b.textContent = text; b.title = title;
+    header.appendChild(b); return b;
+  };
+  const prevB = btn("‹", "previous chapter"), playB = btn("▶", "play"), nextB = btn("›", "next chapter");
+  let raf = null, last = 0;
+  const starts = () =&gt; { const c = getChapter(); return c.map((x, j) =&gt; (j === 0 || x !== c[j - 1]) ? j : null).filter((j) =&gt; j !== null); };
+  const chapter = (dir) =&gt; {
+    const s = starts(), p = getPos();
+    const k = d3.bisectRight(s, Math.floor(p)) - 1;           // the chapter we are in
+    go(dir &gt; 0 ? (s[k + 1] ?? getN() - 1) : (p &gt; s[k] + 0.5 ? s[k] : s[Math.max(0, k - 1)]));
+  };
+  const frame = (t) =&gt; {
+    const dt = last ? (t - last) / 1000 : 0; last = t;
+    const next = getPos() + dt * (getN() - 1) / seconds;
+    if (next &gt;= getN() - 1) { go(getN() - 1); stop(); return; }
+    go(next); raf = requestAnimationFrame(frame);
+  };
+  const stop = () =&gt; { if (raf) cancelAnimationFrame(raf); raf = null; last = 0; playB.textContent = "▶"; playB.setAttribute("aria-pressed", false); };
+  const play = () =&gt; {
+    if (getPos() &gt;= getN() - 1) go(0);
+    playB.textContent = "❚❚"; playB.setAttribute("aria-pressed", true);
+    raf = requestAnimationFrame(frame);
+  };
+  const toggle = () =&gt; (raf ? stop() : play());
+  playB.onclick = toggle; prevB.onclick = () =&gt; chapter(-1); nextB.onclick = () =&gt; chapter(1);
   document.addEventListener("keydown", (ev) =&gt; {
     if (ev.target.tagName === "SELECT") return;
     if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
-      go(getI() + (ev.key === "ArrowRight" ? 1 : -1) * (ev.shiftKey ? 20 : 1));
+      go(Math.round(getPos()) + (ev.key === "ArrowRight" ? 1 : -1) * (ev.shiftKey ? 20 : 1));
       ev.preventDefault();
-    } else if (ev.key === " ") {
-      ev.preventDefault();
-      if (playing) { clearInterval(playing); playing = null; return; }
-      playing = setInterval(() =&gt; {
-        if (getI() &gt;= getN() - 1) { clearInterval(playing); playing = null; } else go(getI() + 1);
-      }, 60);
-    }
+    } else if (ev.key === " ") { ev.preventDefault(); toggle(); }
+    else if (ev.key === "]") chapter(1);
+    else if (ev.key === "[") chapter(-1);
   });
+  return { stop };
 }
 
 // Where paragraph i sits along a path of windows whose last field is the window's
@@ -469,13 +512,14 @@ $("method").onchange = (e) =&gt; { S.method = e.target.value; draw(); };
 $("axes").onclick = () =&gt; {
   S.axes = !S.axes; $("axes").setAttribute("aria-pressed", S.axes);
   d3.select("#map2d .axes").style("display", S.axes ? null : "none");
-  if (scene3) { showAxes(scene3.group, S.axes); scene3.request(); }
+  if (scene3) { showAxes(scene3.group, S.axes &amp;&amp; !rider?.riding); scene3.request(); }
 };
 $("ride").onclick = () =&gt; {
   if (!rider) return;
   rider.riding ? rider.off() : rider.on();
   $("ride").setAttribute("aria-pressed", rider.riding);
-  go(S.i);
+  showAxes(scene3.group, S.axes &amp;&amp; !rider.riding);   // no axes floating in the ride view
+  go(S.pos ?? S.i);
 };
 $("dim").onclick = () =&gt; {
   if (rider?.riding) $("ride").click();          // leave the ride before leaving 3-D
@@ -546,7 +590,7 @@ function draw3d() {
     rider = Rider(scene3);
     scene3.renderer.domElement.addEventListener("dblclick", pick3d);
   }
-  scene3.clear(); trav3 = null;
+  scene3.clear(); trav3 = null; S.drawnJ = null;
   const b = book(), f = field(), F = Frame(b.extent), [lo, hi] = range(f);
   const h = (v) =&gt; lift(v, lo, hi);
   ground = terrain(f, b.n, b.extent, { height: h, lo, hi, keep: (k) =&gt; b.support[k] &gt;= 1 });
@@ -555,7 +599,7 @@ function draw3d() {
   scene3.group.add(axes3d(scene3, b.extent, {
     height: RELIEF, title: S.emotion,
     ticks: [lo, (lo + hi) / 2, hi].map((v) =&gt; [h(v), fmt(v)]) }));
-  showAxes(scene3.group, S.axes);
+  showAxes(scene3.group, S.axes &amp;&amp; !rider?.riding);
   arc3 = denseArc(b.arc).map(([x, y, c]) =&gt; {
     const v = sample(f, b.n, b.extent, x, y);
     return [F.X(x), h(Number.isFinite(v) ? v : lo) + 0.006, F.Z(y), c];
@@ -581,30 +625,28 @@ function pick3d(ev) {
 // ---- reading --------------------------------------------------------------------
 const tl = Timeline($("timeline"), (i) =&gt; go(i));
 function go(i) {
-  const b = book();
-  S.i = Math.max(0, Math.min(b.text.length - 1, i));
+  const b = book(), N = b.text.length - 1;
+  S.pos = Math.max(0, Math.min(N, i)); S.i = Math.round(S.pos);
   if (S.three) {
-    const j = Math.max(0, d3.bisector((p) =&gt; p[3]).left(arc3, S.i) - 1);
-    if (trav3) { scene3.group.remove(trav3); trav3.geometry.dispose(); trav3 = null; }
-    if (j &gt; 0) {
-      const done = arc3.slice(0, j + 1), N = b.text.length - 1;
-      trav3 = curve(done.map((p) =&gt; p.slice(0, 3)), 0.0028, null,
-                    { colorAt: (t) =&gt; orderAt(done[Math.round(t * (done.length - 1))][3] / N) });
-      scene3.group.add(trav3);
+    const { j, p, u } = onArc(arc3, S.pos);
+    if (j !== S.drawnJ) {                               // rebuild the passed part per segment
+      if (trav3) { scene3.group.remove(trav3); trav3.geometry.dispose(); }
+      trav3 = passed(arc3, j, arc3[j].slice(0, 3), N, 0.0028);
+      if (trav3) scene3.group.add(trav3);
+      S.drawnJ = j;
     }
-    marker3.position.set(...arc3[j].slice(0, 3));
+    marker3.position.set(...p);
     marker3.visible = !rider.riding;
-    if (trav3) trav3.visible = !rider.riding;        // riding: only the faint track
-    rider.at(ride3, j / (arc3.length - 1));
+    rider.at(ride3, u);
     scene3.request();
   } else {
-    const { k, t } = pathAt(b.arc, S.i), P = b.arc;
+    const { k, t } = pathAt(b.arc, S.pos), P = b.arc;
     const p = [P[k][0] + t * (P[k + 1][0] - P[k][0]), P[k][1] + t * (P[k + 1][1] - P[k][1])];
-    d3.selectAll("#map2d .seg").attr("stroke-opacity", (s) =&gt; (s[0][2] &lt;= S.i ? 1 : 0.28))
-      .attr("stroke-width", (s) =&gt; (s[0][2] &lt;= S.i ? 2.6 : 1.6));
+    d3.selectAll("#map2d .seg").attr("stroke-opacity", (s) =&gt; (s[0][2] &lt;= S.pos ? 1 : 0.28))
+      .attr("stroke-width", (s) =&gt; (s[0][2] &lt;= S.pos ? 2.6 : 1.6));
     d3.select("#mark").attr("cx", sx(p[0])).attr("cy", sy(p[1]));
   }
-  tl.set(S.i);
+  tl.set(S.pos);
   setText(b, S.i, $("chapter"), $("text"));
   publish(`${S.book}/${S.emotion}/${S.i}${S.three ? "/3d" : ""}`);
 }
@@ -613,7 +655,8 @@ function draw() {
   tl.draw(series(), book().chapter, null, { order: true });
   go(S.i);
 }
-readingKeys(() =&gt; S.i, () =&gt; book().text.length, go);
+Transport(document.querySelector("header"), { getPos: () =&gt; S.pos ?? S.i, getN: () =&gt; book().text.length,
+  getChapter: () =&gt; book().chapter, go });
 
 // open at #book/emotion/paragraph[/3d] -- on load, and whenever the hash is set
 function fromHash(state) {
@@ -803,22 +846,65 @@ function follow(apply) {
   window.addEventListener("message", (e) =&gt; { if (typeof e.data?.viewerState === "string") apply(e.data.viewerState); });
 }
 
-// Arrows step (shift: 20), space plays.
-function readingKeys(getI, getN, go) {
-  let playing = null;
+// where position `pos` falls on a dense arc [[x, y, z, centre], ...]: the segment j,
+// the fraction f along it, the point there, and u (0..1) along the whole arc
+function onArc(arc, pos) {
+  const j = Math.max(0, Math.min(arc.length - 2, d3.bisector((p) =&gt; p[3]).left(arc, pos) - 1));
+  const f = Math.max(0, Math.min(1, (pos - arc[j][3]) / ((arc[j + 1][3] - arc[j][3]) || 1)));
+  const p = [0, 1, 2].map((d) =&gt; arc[j][d] + f * (arc[j + 1][d] - arc[j][d]));
+  return { j, f, p, u: (j + f) / (arc.length - 1) };
+}
+// the passed part of an arc as a tube in reading-order colours (or ink), up to point p
+function passed(arc, j, p, N, radius, ink = null) {
+  const pts = arc.slice(0, j + 1).map((q) =&gt; q.slice(0, 3)).concat([p]);
+  if (pts.length &lt; 2) return null;
+  const cs = arc.slice(0, j + 1).map((q) =&gt; q[3]).concat([arc[j][3]]);
+  return ink ? curve(pts, radius, ink)
+    : curve(pts, radius, null, { colorAt: (t) =&gt; orderAt(cs[Math.round(t * (cs.length - 1))] / N) });
+}
+
+// Moving through the book: previous chapter, play / pause, next chapter as three
+// small buttons in `header`, and keys -- arrows step (shift: 20), space plays,
+// [ and ] jump a chapter. Play is continuous: the position (a fractional paragraph)
+// advances every frame, so a ride glides rather than hops; the book takes ~90 s.
+function Transport(header, { getPos, getN, getChapter, go, seconds = 90 }) {
+  const btn = (text, title) =&gt; {
+    const b = document.createElement("button");
+    b.className = "toggle"; b.textContent = text; b.title = title;
+    header.appendChild(b); return b;
+  };
+  const prevB = btn("‹", "previous chapter"), playB = btn("▶", "play"), nextB = btn("›", "next chapter");
+  let raf = null, last = 0;
+  const starts = () =&gt; { const c = getChapter(); return c.map((x, j) =&gt; (j === 0 || x !== c[j - 1]) ? j : null).filter((j) =&gt; j !== null); };
+  const chapter = (dir) =&gt; {
+    const s = starts(), p = getPos();
+    const k = d3.bisectRight(s, Math.floor(p)) - 1;           // the chapter we are in
+    go(dir &gt; 0 ? (s[k + 1] ?? getN() - 1) : (p &gt; s[k] + 0.5 ? s[k] : s[Math.max(0, k - 1)]));
+  };
+  const frame = (t) =&gt; {
+    const dt = last ? (t - last) / 1000 : 0; last = t;
+    const next = getPos() + dt * (getN() - 1) / seconds;
+    if (next &gt;= getN() - 1) { go(getN() - 1); stop(); return; }
+    go(next); raf = requestAnimationFrame(frame);
+  };
+  const stop = () =&gt; { if (raf) cancelAnimationFrame(raf); raf = null; last = 0; playB.textContent = "▶"; playB.setAttribute("aria-pressed", false); };
+  const play = () =&gt; {
+    if (getPos() &gt;= getN() - 1) go(0);
+    playB.textContent = "❚❚"; playB.setAttribute("aria-pressed", true);
+    raf = requestAnimationFrame(frame);
+  };
+  const toggle = () =&gt; (raf ? stop() : play());
+  playB.onclick = toggle; prevB.onclick = () =&gt; chapter(-1); nextB.onclick = () =&gt; chapter(1);
   document.addEventListener("keydown", (ev) =&gt; {
     if (ev.target.tagName === "SELECT") return;
     if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
-      go(getI() + (ev.key === "ArrowRight" ? 1 : -1) * (ev.shiftKey ? 20 : 1));
+      go(Math.round(getPos()) + (ev.key === "ArrowRight" ? 1 : -1) * (ev.shiftKey ? 20 : 1));
       ev.preventDefault();
-    } else if (ev.key === " ") {
-      ev.preventDefault();
-      if (playing) { clearInterval(playing); playing = null; return; }
-      playing = setInterval(() =&gt; {
-        if (getI() &gt;= getN() - 1) { clearInterval(playing); playing = null; } else go(getI() + 1);
-      }, 60);
-    }
+    } else if (ev.key === " ") { ev.preventDefault(); toggle(); }
+    else if (ev.key === "]") chapter(1);
+    else if (ev.key === "[") chapter(-1);
   });
+  return { stop };
 }
 
 // Where paragraph i sits along a path of windows whose last field is the window's
@@ -1067,7 +1153,7 @@ if (Object.keys(DATA.books).length &lt; 2) $("book").style.display = "none";
 $("book").onchange = (e) =&gt; { S.book = e.target.value; S.i = 0; draw(); };
 $("axes").onclick = () =&gt; {
   S.axes = !S.axes; $("axes").setAttribute("aria-pressed", S.axes);
-  showAxes(scene.group, S.axes); scene.request();
+  showAxes(scene.group, S.axes &amp;&amp; !rider.riding); scene.request();
 };
 
 const scene = Scene($("stage")), rider = Rider(scene);
@@ -1075,7 +1161,8 @@ let rideTrack = null;
 $("ride").onclick = () =&gt; {
   rider.riding ? rider.off() : rider.on();
   $("ride").setAttribute("aria-pressed", rider.riding);
-  go(S.i);
+  showAxes(scene.group, S.axes &amp;&amp; !rider.riding);    // no axes floating in the ride view
+  go(S.pos ?? S.i);
 };
 scene.controls.target.set(0, 0.3, 0);
 scene.renderer.domElement.addEventListener("dblclick", pick);
@@ -1083,7 +1170,7 @@ let arc = [], ground = null, marker = null, trav = null;
 
 function draw() {
   const b = book(), F = Frame(b.extent), f = b.field;
-  scene.clear(); trav = null;
+  scene.clear(); trav = null; S.drawn = null;
   ground = terrain(f, b.n, b.extent, { height: (v) =&gt; v * H, color: moodColor(),
                                        keep: (k) =&gt; b.support[k] &gt;= 1 });
   scene.group.add(ground);
@@ -1098,7 +1185,7 @@ function draw() {
     const y = b.positions[j] * H;
     emotionAxis.add(label(name, [corner[0], y, corner[2]], { dot: b.colors[j] }));
   });
-  showAxes(scene.group, S.axes);
+  showAxes(scene.group, S.axes &amp;&amp; !rider.riding);
   // the arc on the surface
   arc = denseArc(b.arc).map(([x, y, c]) =&gt; {
     const v = sample(f, b.n, b.extent, x, y);
@@ -1125,23 +1212,27 @@ function pick(ev) {
 
 const tl = Timeline($("timeline"), (i) =&gt; go(i));
 function go(i) {
-  const b = book();
-  S.i = Math.max(0, Math.min(b.text.length - 1, i));
-  const j = Math.max(0, d3.bisector((p) =&gt; p[3]).left(arc, S.i) - 1);
-  if (trav) { scene.group.remove(trav); trav.geometry.dispose(); trav = null; }
-  if (j &gt; 0) { trav = curve(arc.slice(0, j + 1).map((p) =&gt; p.slice(0, 3)), 0.0026, css("--ink")); scene.group.add(trav); }
-  marker.position.set(...arc[j].slice(0, 3));
+  const b = book(), N = b.text.length - 1;
+  S.pos = Math.max(0, Math.min(N, i)); S.i = Math.round(S.pos);
+  const { j, p, u } = onArc(arc, S.pos), key = `${j}/${rider.riding}`;
+  if (key !== S.drawn) {            // the passed part: ink, or reading-order colours when riding
+    if (trav) { scene.group.remove(trav); trav.geometry.dispose(); }
+    trav = passed(arc, j, arc[j].slice(0, 3), N, 0.0026, rider.riding ? null : css("--ink"));
+    if (trav) scene.group.add(trav);
+    S.drawn = key;
+  }
+  marker.position.set(...p);
   marker.visible = !rider.riding;
-  if (trav) trav.visible = !rider.riding;            // riding: only the faint track
-  rider.at(rideTrack, j / (arc.length - 1));
+  rider.at(rideTrack, u);
   scene.request();
-  tl.set(S.i);
+  tl.set(S.pos);
   setText(b, S.i, $("chapter"), $("text"));
-  const e = d3.minIndex(b.positions, (p) =&gt; Math.abs(p - b.mood[S.i]));
+  const e = d3.minIndex(b.positions, (q) =&gt; Math.abs(q - b.mood[S.i]));
   $("mood").innerHTML = `&lt;i style="background:${b.colors[e]}"&gt;&lt;/i&gt;${b.order[e]}`;
   publish(`${S.book}/${S.i}`);
 }
-readingKeys(() =&gt; S.i, () =&gt; book().text.length, go);
+Transport(document.querySelector("header"), { getPos: () =&gt; S.pos ?? S.i, getN: () =&gt; book().text.length,
+  getChapter: () =&gt; book().chapter, go });
 
 // open at #book/paragraph -- on load, and whenever the hash is set
 function fromHash(state) {
@@ -1330,22 +1421,65 @@ function follow(apply) {
   window.addEventListener("message", (e) =&gt; { if (typeof e.data?.viewerState === "string") apply(e.data.viewerState); });
 }
 
-// Arrows step (shift: 20), space plays.
-function readingKeys(getI, getN, go) {
-  let playing = null;
+// where position `pos` falls on a dense arc [[x, y, z, centre], ...]: the segment j,
+// the fraction f along it, the point there, and u (0..1) along the whole arc
+function onArc(arc, pos) {
+  const j = Math.max(0, Math.min(arc.length - 2, d3.bisector((p) =&gt; p[3]).left(arc, pos) - 1));
+  const f = Math.max(0, Math.min(1, (pos - arc[j][3]) / ((arc[j + 1][3] - arc[j][3]) || 1)));
+  const p = [0, 1, 2].map((d) =&gt; arc[j][d] + f * (arc[j + 1][d] - arc[j][d]));
+  return { j, f, p, u: (j + f) / (arc.length - 1) };
+}
+// the passed part of an arc as a tube in reading-order colours (or ink), up to point p
+function passed(arc, j, p, N, radius, ink = null) {
+  const pts = arc.slice(0, j + 1).map((q) =&gt; q.slice(0, 3)).concat([p]);
+  if (pts.length &lt; 2) return null;
+  const cs = arc.slice(0, j + 1).map((q) =&gt; q[3]).concat([arc[j][3]]);
+  return ink ? curve(pts, radius, ink)
+    : curve(pts, radius, null, { colorAt: (t) =&gt; orderAt(cs[Math.round(t * (cs.length - 1))] / N) });
+}
+
+// Moving through the book: previous chapter, play / pause, next chapter as three
+// small buttons in `header`, and keys -- arrows step (shift: 20), space plays,
+// [ and ] jump a chapter. Play is continuous: the position (a fractional paragraph)
+// advances every frame, so a ride glides rather than hops; the book takes ~90 s.
+function Transport(header, { getPos, getN, getChapter, go, seconds = 90 }) {
+  const btn = (text, title) =&gt; {
+    const b = document.createElement("button");
+    b.className = "toggle"; b.textContent = text; b.title = title;
+    header.appendChild(b); return b;
+  };
+  const prevB = btn("‹", "previous chapter"), playB = btn("▶", "play"), nextB = btn("›", "next chapter");
+  let raf = null, last = 0;
+  const starts = () =&gt; { const c = getChapter(); return c.map((x, j) =&gt; (j === 0 || x !== c[j - 1]) ? j : null).filter((j) =&gt; j !== null); };
+  const chapter = (dir) =&gt; {
+    const s = starts(), p = getPos();
+    const k = d3.bisectRight(s, Math.floor(p)) - 1;           // the chapter we are in
+    go(dir &gt; 0 ? (s[k + 1] ?? getN() - 1) : (p &gt; s[k] + 0.5 ? s[k] : s[Math.max(0, k - 1)]));
+  };
+  const frame = (t) =&gt; {
+    const dt = last ? (t - last) / 1000 : 0; last = t;
+    const next = getPos() + dt * (getN() - 1) / seconds;
+    if (next &gt;= getN() - 1) { go(getN() - 1); stop(); return; }
+    go(next); raf = requestAnimationFrame(frame);
+  };
+  const stop = () =&gt; { if (raf) cancelAnimationFrame(raf); raf = null; last = 0; playB.textContent = "▶"; playB.setAttribute("aria-pressed", false); };
+  const play = () =&gt; {
+    if (getPos() &gt;= getN() - 1) go(0);
+    playB.textContent = "❚❚"; playB.setAttribute("aria-pressed", true);
+    raf = requestAnimationFrame(frame);
+  };
+  const toggle = () =&gt; (raf ? stop() : play());
+  playB.onclick = toggle; prevB.onclick = () =&gt; chapter(-1); nextB.onclick = () =&gt; chapter(1);
   document.addEventListener("keydown", (ev) =&gt; {
     if (ev.target.tagName === "SELECT") return;
     if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
-      go(getI() + (ev.key === "ArrowRight" ? 1 : -1) * (ev.shiftKey ? 20 : 1));
+      go(Math.round(getPos()) + (ev.key === "ArrowRight" ? 1 : -1) * (ev.shiftKey ? 20 : 1));
       ev.preventDefault();
-    } else if (ev.key === " ") {
-      ev.preventDefault();
-      if (playing) { clearInterval(playing); playing = null; return; }
-      playing = setInterval(() =&gt; {
-        if (getI() &gt;= getN() - 1) { clearInterval(playing); playing = null; } else go(getI() + 1);
-      }, 60);
-    }
+    } else if (ev.key === " ") { ev.preventDefault(); toggle(); }
+    else if (ev.key === "]") chapter(1);
+    else if (ev.key === "[") chapter(-1);
   });
+  return { stop };
 }
 
 // Where paragraph i sits along a path of windows whose last field is the window's
@@ -1612,7 +1746,7 @@ let rideTrack = null, fitCurve = null;
 $("ride").onclick = () =&gt; {
   rider.riding ? rider.off() : rider.on();
   $("ride").setAttribute("aria-pressed", rider.riding);
-  go(S.i);
+  go(S.pos ?? S.i);
 };
 scene.controls.target.set(0, 0, 0);
 scene.camera.position.set(1.9, 1.3, 2.4);
@@ -1671,29 +1805,24 @@ function draw() {
 
 const tl = Timeline($("timeline"), (i) =&gt; go(i));
 function go(i) {
-  const b = book();
-  S.i = Math.max(0, Math.min(b.text.length - 1, i));
-  const { k, t } = pathAt(W3, S.i);
-  const p = [0, 1, 2].map((d) =&gt; W3[k][d] + t * (W3[k + 1][d] - W3[k][d]));
-  if (trav) { scene.group.remove(trav); trav.geometry.dispose(); trav = null; }
-  const pts = W3.slice(0, k + 1).map((w) =&gt; w.slice(0, 3)).concat([p]);
-  if (pts.length &gt; 1) {
-    const N = b.text.length - 1, cs = W3.slice(0, k + 1).map((w) =&gt; w[3]).concat([S.i]);
-    trav = S.tube &amp;&amp; b.tube ? curve(pts, 0.004, css("--ink"))
-      : curve(pts, 0.0045, null, { colorAt: (t) =&gt; orderAt(cs[Math.round(t * (cs.length - 1))] / N) });
-    scene.group.add(trav);
-  }
+  const b = book(), N = b.text.length - 1;
+  S.pos = Math.max(0, Math.min(N, i)); S.i = Math.round(S.pos);
+  const { j, p, u } = onArc(W3, S.pos);
+  const ink = S.tube &amp;&amp; b.tube &amp;&amp; !rider.riding ? css("--ink") : null;
+  if (trav) { scene.group.remove(trav); trav.geometry.dispose(); }
+  trav = passed(W3, j, p, N, 0.0045, ink);           // W3 is short: rebuild every step
+  if (trav) scene.group.add(trav);
   marker.position.set(...p);
   marker.visible = !rider.riding;
-  if (trav) trav.visible = !rider.riding;            // riding: only the faint track
   if (fitCurve) fitCurve.visible = !rider.riding;
-  rider.at(rideTrack, (k + t) / (W3.length - 1), { up: 0.12, ahead: 0.06 });
+  rider.at(rideTrack, u, { up: 0.12, ahead: 0.06 });
   scene.request();
-  tl.set(S.i);
+  tl.set(S.pos);
   setText(b, S.i, $("chapter"), $("text"));
   publish(`${S.book}/${S.proj}/${S.emotion}/${S.i}${S.tube ? "/tube" : ""}`);
 }
-readingKeys(() =&gt; S.i, () =&gt; book().text.length, go);
+Transport(document.querySelector("header"), { getPos: () =&gt; S.pos ?? S.i, getN: () =&gt; book().text.length,
+  getChapter: () =&gt; book().chapter, go });
 
 // open at #book/projection/emotion/paragraph[/tube] -- on load, and whenever the hash is set
 function fromHash(state) {

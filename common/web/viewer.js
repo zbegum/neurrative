@@ -101,22 +101,65 @@ function follow(apply) {
   window.addEventListener("message", (e) => { if (typeof e.data?.viewerState === "string") apply(e.data.viewerState); });
 }
 
-// Arrows step (shift: 20), space plays.
-function readingKeys(getI, getN, go) {
-  let playing = null;
+// where position `pos` falls on a dense arc [[x, y, z, centre], ...]: the segment j,
+// the fraction f along it, the point there, and u (0..1) along the whole arc
+function onArc(arc, pos) {
+  const j = Math.max(0, Math.min(arc.length - 2, d3.bisector((p) => p[3]).left(arc, pos) - 1));
+  const f = Math.max(0, Math.min(1, (pos - arc[j][3]) / ((arc[j + 1][3] - arc[j][3]) || 1)));
+  const p = [0, 1, 2].map((d) => arc[j][d] + f * (arc[j + 1][d] - arc[j][d]));
+  return { j, f, p, u: (j + f) / (arc.length - 1) };
+}
+// the passed part of an arc as a tube in reading-order colours (or ink), up to point p
+function passed(arc, j, p, N, radius, ink = null) {
+  const pts = arc.slice(0, j + 1).map((q) => q.slice(0, 3)).concat([p]);
+  if (pts.length < 2) return null;
+  const cs = arc.slice(0, j + 1).map((q) => q[3]).concat([arc[j][3]]);
+  return ink ? curve(pts, radius, ink)
+    : curve(pts, radius, null, { colorAt: (t) => orderAt(cs[Math.round(t * (cs.length - 1))] / N) });
+}
+
+// Moving through the book: previous chapter, play / pause, next chapter as three
+// small buttons in `header`, and keys -- arrows step (shift: 20), space plays,
+// [ and ] jump a chapter. Play is continuous: the position (a fractional paragraph)
+// advances every frame, so a ride glides rather than hops; the book takes ~90 s.
+function Transport(header, { getPos, getN, getChapter, go, seconds = 90 }) {
+  const btn = (text, title) => {
+    const b = document.createElement("button");
+    b.className = "toggle"; b.textContent = text; b.title = title;
+    header.appendChild(b); return b;
+  };
+  const prevB = btn("‹", "previous chapter"), playB = btn("▶", "play"), nextB = btn("›", "next chapter");
+  let raf = null, last = 0;
+  const starts = () => { const c = getChapter(); return c.map((x, j) => (j === 0 || x !== c[j - 1]) ? j : null).filter((j) => j !== null); };
+  const chapter = (dir) => {
+    const s = starts(), p = getPos();
+    const k = d3.bisectRight(s, Math.floor(p)) - 1;           // the chapter we are in
+    go(dir > 0 ? (s[k + 1] ?? getN() - 1) : (p > s[k] + 0.5 ? s[k] : s[Math.max(0, k - 1)]));
+  };
+  const frame = (t) => {
+    const dt = last ? (t - last) / 1000 : 0; last = t;
+    const next = getPos() + dt * (getN() - 1) / seconds;
+    if (next >= getN() - 1) { go(getN() - 1); stop(); return; }
+    go(next); raf = requestAnimationFrame(frame);
+  };
+  const stop = () => { if (raf) cancelAnimationFrame(raf); raf = null; last = 0; playB.textContent = "▶"; playB.setAttribute("aria-pressed", false); };
+  const play = () => {
+    if (getPos() >= getN() - 1) go(0);
+    playB.textContent = "❚❚"; playB.setAttribute("aria-pressed", true);
+    raf = requestAnimationFrame(frame);
+  };
+  const toggle = () => (raf ? stop() : play());
+  playB.onclick = toggle; prevB.onclick = () => chapter(-1); nextB.onclick = () => chapter(1);
   document.addEventListener("keydown", (ev) => {
     if (ev.target.tagName === "SELECT") return;
     if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
-      go(getI() + (ev.key === "ArrowRight" ? 1 : -1) * (ev.shiftKey ? 20 : 1));
+      go(Math.round(getPos()) + (ev.key === "ArrowRight" ? 1 : -1) * (ev.shiftKey ? 20 : 1));
       ev.preventDefault();
-    } else if (ev.key === " ") {
-      ev.preventDefault();
-      if (playing) { clearInterval(playing); playing = null; return; }
-      playing = setInterval(() => {
-        if (getI() >= getN() - 1) { clearInterval(playing); playing = null; } else go(getI() + 1);
-      }, 60);
-    }
+    } else if (ev.key === " ") { ev.preventDefault(); toggle(); }
+    else if (ev.key === "]") chapter(1);
+    else if (ev.key === "[") chapter(-1);
   });
+  return { stop };
 }
 
 // Where paragraph i sits along a path of windows whose last field is the window's
