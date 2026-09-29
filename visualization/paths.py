@@ -104,15 +104,6 @@ SURFACE_POISSON_OPEN = "poisson_open"
 # which plane it was fitted over.
 BASE_PROJECTION = "pca"
 
-# The same z = f(PC1, PC2) height field, fitted globally by least squares
-# through the vendored StandardCyborg/nurbs library rather than by kernel
-# smoothing. A sibling of SURFACE rather than a subfolder of it: it shares the
-# figure and the .npz contract but none of the bandwidth machinery those
-# subfolders are organised around -- its knob is the control-point count. The
-# `nurbs-surface/` code that wrote these outputs is not in this repository;
-# the constant is kept so existing output directories still resolve.
-NURBS_SURFACE = "nurbs_surface"
-
 GEODESICS = "geodesics"
 
 # The windowed series itself -- pooled vectors, window ranges, pooled scores --
