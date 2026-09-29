@@ -99,6 +99,13 @@ def main():
   parser.add_argument("--azim", default=-60.0, type=float)
   args = parser.parse_args()
 
+  for book, model in cli.targets(args, parser):
+    args.book, args.model = book, model
+    draw_grid(args)
+
+
+def draw_grid(args):
+  """One grid figure for args.book / args.model."""
   settings = [tuple(int(x) for x in w.split(":")) for w in args.windows]
   n_rows = len(settings)
 

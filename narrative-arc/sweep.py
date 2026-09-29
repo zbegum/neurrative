@@ -350,12 +350,21 @@ def main():
   parser.add_argument("--proj-stride", default=10, type=int)
   args = parser.parse_args()
 
-  for sweep in args.sweeps:
-    print(f"\n=== {sweep} sweep: {args.book} ===")
-    owner = "_models" if sweep == "models" else args.model
-    out = paths.out_dir(args.output_dir, args.book, owner, "sweeps", sweep)
-    globals()[f"sweep_{sweep}"](args, out)
-    paths.stamp(out, __file__, args, sweep=sweep)
+  # The models sweep already compares every model of a book, so it runs once
+  # per book rather than once per (book, model).
+  models_done = set()
+  for book, model in cli.targets(args, parser):
+    args.book, args.model = book, model
+    for sweep in args.sweeps:
+      if sweep == "models":
+        if book in models_done:
+          continue
+        models_done.add(book)
+      print(f"\n=== {sweep} sweep: {book} / {model} ===")
+      owner = "_models" if sweep == "models" else model
+      out = paths.out_dir(args.output_dir, book, owner, "sweeps", sweep)
+      globals()[f"sweep_{sweep}"](args, out)
+      paths.stamp(out, __file__, args, sweep=sweep)
 
   print("\nDone.")
 
