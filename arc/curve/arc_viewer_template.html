@@ -22,6 +22,7 @@ __HEAD_LIBS__
 <header>
   <select id="book"></select><select id="proj"></select><select id="emotion"></select>
   <button class="toggle" id="tube" aria-pressed="false">tube</button>
+  <button class="toggle" id="ride" aria-pressed="false">ride</button>
   <span class="key" id="key"></span>
 </header>
 <main>
@@ -56,7 +57,13 @@ $("proj").onchange = (e) => { S.proj = e.target.value; controlsFor(); draw(); };
 $("emotion").onchange = (e) => { S.emotion = e.target.value; draw(); };
 $("tube").onclick = () => { S.tube = !S.tube; $("tube").setAttribute("aria-pressed", S.tube); draw(); };
 
-const scene = Scene($("stage"));
+const scene = Scene($("stage")), rider = Rider(scene);
+let rideTrack = null, fitCurve = null;
+$("ride").onclick = () => {
+  rider.riding ? rider.off() : rider.on();
+  $("ride").setAttribute("aria-pressed", rider.riding);
+  go(S.i);
+};
 scene.controls.target.set(0, 0, 0);
 scene.camera.position.set(1.9, 1.3, 2.4);
 let W3 = [], trav = null, marker = null;
@@ -72,7 +79,8 @@ function draw() {
   const b = book(), P = b.proj[S.proj], place = placer(P.windows);
   scene.clear(); trav = null;
   // the fitted B-spline; with the tube on, the tube (around its own fit) takes its place
-  if (!(S.tube && b.tube)) scene.group.add(curve(P.curve.map(place), 0.006, css("--arc")));
+  fitCurve = S.tube && b.tube ? null : curve(P.curve.map(place), 0.006, css("--arc"));
+  if (fitCurve) scene.group.add(fitCurve);
   W3 = P.windows.map((w, k) => [...place(w), b.centers[k]]);
   // without the tube, the whole window path, faint, in reading-order colours
   if (!(S.tube && b.tube)) {
@@ -101,6 +109,7 @@ function draw() {
     scene.group.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({
       vertexColors: true, transparent: true, opacity: 0.85, side: THREE.DoubleSide, roughness: 0.7 })));
   }
+  rideTrack = track(W3);
   marker = ball([0, 0, 0], 0.03, css("--ink"));
   scene.group.add(marker);
   const ec = DATA.colors[S.emotion];   // the timeline in the chosen emotion's colour
@@ -125,6 +134,10 @@ function go(i) {
     scene.group.add(trav);
   }
   marker.position.set(...p);
+  marker.visible = !rider.riding;
+  if (trav) trav.visible = !rider.riding;            // riding: only the faint track
+  if (fitCurve) fitCurve.visible = !rider.riding;
+  rider.at(rideTrack, (k + t) / (W3.length - 1), { up: 0.12, ahead: 0.06 });
   scene.request();
   tl.set(S.i);
   setText(b, S.i, $("chapter"), $("text"));

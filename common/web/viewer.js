@@ -304,6 +304,42 @@ function axes3d(scene, extent, { x = "PC1", z = "PC2", height = null, ticks = []
   return g;
 }
 
+// Riding the curve: the camera sits on a curve at parameter u (0 = start, 1 = end)
+// and looks a little further along it, like a rollercoaster. on() remembers the
+// orbit view, off() puts it back.
+function Rider(scene) {
+  const { camera, controls } = scene;
+  let saved = null;
+  return {
+    get riding() { return saved !== null; },
+    on() {
+      saved = { p: camera.position.clone(), t: controls.target.clone(), fov: camera.fov, near: camera.near };
+      controls.enabled = false;
+      camera.fov = 62; camera.near = 0.001; camera.updateProjectionMatrix();
+    },
+    off() {
+      if (!saved) return;
+      camera.position.copy(saved.p); controls.target.copy(saved.t);
+      camera.fov = saved.fov; camera.near = saved.near; camera.updateProjectionMatrix();
+      controls.enabled = true; saved = null; scene.request();
+    },
+    // curve: a THREE curve (getPoint by parameter); up: eye height above the track
+    at(curve, u, { up = 0.1, ahead = 0.05 } = {}) {
+      if (!saved) return;
+      const c = (x) => Math.max(0, Math.min(1, x));
+      const eye = curve.getPoint(c(u));
+      let look = curve.getPoint(c(u + ahead));
+      if (look.distanceTo(eye) < 1e-6) look = eye.clone().add(curve.getTangent(c(u)).multiplyScalar(0.1));
+      eye.y += up; look.y += up * 0.6;
+      camera.position.copy(eye); controls.target.copy(look); camera.lookAt(look);
+      scene.request();
+    },
+  };
+}
+
+// A THREE curve through world points (by index, so u = k / (n - 1) is point k).
+const track = (pts) => new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(p[0], p[1], p[2])));
+
 // Show or hide every group tagged userData.axes under `root`. Each object is set
 // one by one, since the text labels (CSS2DObject) do not inherit visibility.
 function showAxes(root, on) {

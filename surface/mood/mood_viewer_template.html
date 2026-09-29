@@ -19,7 +19,7 @@ main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); min-
 __HEAD_LIBS__
 </head>
 <body>
-<header><select id="book"></select><button class="toggle" id="axes" aria-pressed="true">axes</button></header>
+<header><select id="book"></select><button class="toggle" id="axes" aria-pressed="true">axes</button><button class="toggle" id="ride" aria-pressed="false">ride</button></header>
 <main>
   <div class="stage" id="stage"></div>
   <div class="read"><div class="chapter" id="chapter"></div><div class="mood" id="mood"></div><div class="text" id="text"></div></div>
@@ -42,7 +42,13 @@ $("axes").onclick = () => {
   showAxes(scene.group, S.axes); scene.request();
 };
 
-const scene = Scene($("stage"));
+const scene = Scene($("stage")), rider = Rider(scene);
+let rideTrack = null;
+$("ride").onclick = () => {
+  rider.riding ? rider.off() : rider.on();
+  $("ride").setAttribute("aria-pressed", rider.riding);
+  go(S.i);
+};
 scene.controls.target.set(0, 0.3, 0);
 scene.renderer.domElement.addEventListener("dblclick", pick);
 let arc = [], ground = null, marker = null, trav = null;
@@ -71,6 +77,7 @@ function draw() {
     return [F.X(x), (Number.isFinite(v) ? v : 0) * H + 0.006, F.Z(y), c];
   });
   scene.group.add(curve(arc.map((p) => p.slice(0, 3)), 0.0016, css("--ink-3")));
+  rideTrack = track(arc);
   marker = ball([0, 0, 0], 0.016, css("--ink"));
   scene.group.add(marker);
   tl.draw(b.timeline, b.chapter, b.positions.map((p, j) => [p, b.colors[j]]));
@@ -96,6 +103,9 @@ function go(i) {
   if (trav) { scene.group.remove(trav); trav.geometry.dispose(); trav = null; }
   if (j > 0) { trav = curve(arc.slice(0, j + 1).map((p) => p.slice(0, 3)), 0.0026, css("--ink")); scene.group.add(trav); }
   marker.position.set(...arc[j].slice(0, 3));
+  marker.visible = !rider.riding;
+  if (trav) trav.visible = !rider.riding;            // riding: only the faint track
+  rider.at(rideTrack, j / (arc.length - 1));
   scene.request();
   tl.set(S.i);
   setText(b, S.i, $("chapter"), $("text"));
