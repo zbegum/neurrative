@@ -53,7 +53,7 @@ arc/                step 3  the narrative arc
 arc_on_surface/     step 4  the arc lifted onto the landscape, and geodesics
 
 docs/figures/       curated figures with captions
-docs/interactive/   four interactive HTML pages (the arc and tube explorers, ...)
+docs/interactive/   three interactive HTML pages (the arc and tube explorers, ...)
 site/               a pipeline reference page generated from the code
 ```
 
