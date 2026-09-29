@@ -1,5 +1,7 @@
 # Narrative Arc
 
+*Part of [neurrative](../README.md). Run the commands below from this folder.*
+
 Trace a book's path through embedding space. Slide a window over its paragraphs,
 average the embeddings in each window, project the windows to 2-D or 3-D with
 **PCA, UMAP and t-SNE**, and connect them in reading order. The resulting line is
@@ -65,10 +67,11 @@ Python ≥ 3.9.
 
 ## Data
 
-Books go under `data/` (or anywhere, via `--data-dir`):
+Books are read from the repository's shared `../books/` (or anywhere, via
+`--data-dir`):
 
 ```
-data/
+books/
   <book>/
     processed.json              {"paragraphs": [{"id", "chapter_id", "text", ...}],
                                  "chapters":   [{"chapter_id", "title", ...}]}
@@ -77,11 +80,13 @@ data/
       <model>/embeddings.npy    (n_paragraphs, dim), row i = paragraph i
 ```
 
-The repository ships **Alice's Adventures in Wonderland** (Project Gutenberg)
-with `bge-m3` embeddings and per-paragraph emotion scores
-(wonder, danger, sadness, humor, confusion, curiosity), so everything below runs
-out of the box. Without `paragraph_scores.json` only `--color progression` and
-`--color chapter` are available.
+The repository ships **Alice's Adventures in Wonderland**, **Pride and
+Prejudice** and **Hamlet** (Project Gutenberg), each with `bge-m3`,
+`e5-large-v2` and `qwen3-embedding` embeddings. Alice and Pride and Prejudice
+also have per-paragraph emotion scores (wonder, danger, sadness, humor,
+confusion, curiosity), so everything below runs out of the box. Hamlet has no
+`paragraph_scores.json`, so only `--color progression` and `--color chapter`
+are available for it.
 
 ## Usage
 

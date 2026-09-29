@@ -18,7 +18,8 @@ import subprocess
 from datetime import datetime, timezone
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEFAULT_DATA_DIR = os.path.join(ROOT, "data")
+# The books live at the repository root, shared with the rest of neurrative.
+DEFAULT_DATA_DIR = os.path.join(os.path.dirname(ROOT), "books")
 DEFAULT_OUTPUT_DIR = os.path.join(ROOT, "output")
 
 WINDOWS = "windows"
