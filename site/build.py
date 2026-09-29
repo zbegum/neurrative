@@ -1,4 +1,4 @@
-"""Collect what is in books/ and output/ into one JSON the site reads.
+"""Collect what is in books/ and every step's output/ into one JSON the site reads.
 
 The page is deliberately not allowed to contain a number that was typed by hand.
 Every figure it links and every metric it prints is discovered here, so a stale
@@ -17,7 +17,12 @@ import os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BOOKS = os.path.join(ROOT, "books")
-OUTPUT = os.path.join(ROOT, "output")
+# Each step keeps its results next to its code, in <folder>/output/. The surface
+# methods are one family on the page, however many folders they live in.
+STEP_OUTPUTS = ["projection", "arc", "arc_on_surface"]
+SURFACE_OUTPUTS = ["surface/points", "surface/kernel", "surface/bspline",
+                   "surface/poisson"]
+MOOD_OUTPUT = "surface/mood"
 SITE = os.path.dirname(os.path.abspath(__file__))
 
 # Anything under a directory named this is a quarantined run: kept on disk for
@@ -43,18 +48,22 @@ FIGURE_ORDER = [
    "The same paragraphs with an emotion score on the third axis, or as the color "
    "over a 3-component projection."),
   ("surface", "Emotion surface",
-   "Everything that fits z = f(PC1, PC2). One estimator "
-   "(geometry/smoothers.py:nadaraya_watson) under several tunings: raw/ is the "
-   "unsmoothed point cloud, the four method folders tune hx/hy by k-fold CV on "
-   "standardized coordinates, isotropic_loo/ tunes a single h by leave-one-out "
-   "in raw PCA units, and bandwidth_sweep/ walks the ladder from under- to "
-   "over-smoothed."),
+   "Everything that fits z = f(PC1, PC2), one folder per method under surface/: "
+   "raw/ is the unsmoothed point cloud (surface/points); the four kernel "
+   "smoothers tune hx/hy by k-fold CV, isotropic_loo/ tunes a single h by "
+   "leave-one-out and bandwidth_sweep/ walks the ladder (surface/kernel); "
+   "bspline_ls*/ is the least-squares B-spline (surface/bspline); poisson_*/ is "
+   "screened Poisson reconstruction (surface/poisson)."),
+  ("mood", "Mood surface",
+   "The six emotions collapsed to one mood value per paragraph on a sadness -> "
+   "humor spectrum, one surface fitted to it, and the arc drawn on it as "
+   "geodesics (surface/mood)."),
   ("geodesics", "Geodesics",
    "Shortest paths between paragraphs measured along the emotion terrain rather "
    "than across the flat plane, so climbing an emotion costs distance."),
-  ("narrative_arc", "Narrative arc (2-D)",
-   "A sliding window over paragraphs in reading order, drawn as a path through "
-   "the projection."),
+  ("windows", "Windowed series",
+   "The book as an ordered sequence of mean-pooled windows: the object every arc "
+   "figure draws (arc/)."),
   ("narrative_arc_3d", "Narrative arc (3-D)",
    "The arc with a third axis. Four groups, separated by where the height comes "
    "from: height_from_text (the emotion the window itself carried), "
@@ -138,51 +147,59 @@ def artifacts():
   deprecated = []
 
   for book in [BOOK]:
-    bd = os.path.join(OUTPUT, book)
-    if not os.path.isdir(bd):
-      continue
     for model in [MODEL]:
-      md = os.path.join(bd, model)
-      if not os.path.isdir(md):
-        continue
+      # figure family -> [(directory to walk, directory paths are relative to)]
+      families = {}
+      for step in STEP_OUTPUTS:
+        md = os.path.join(ROOT, step, "output", book, model)
+        for figure in sorted(os.listdir(md)) if os.path.isdir(md) else []:
+          fd = os.path.join(md, figure)
+          if os.path.isdir(fd):
+            families.setdefault(figure, []).append((fd, fd))
+      for step in SURFACE_OUTPUTS:
+        md = os.path.join(ROOT, step, "output", book, model)
+        for method in sorted(os.listdir(md)) if os.path.isdir(md) else []:
+          if os.path.isdir(os.path.join(md, method)):
+            families.setdefault("surface", []).append(
+              (os.path.join(md, method), md))
+      md = os.path.join(ROOT, MOOD_OUTPUT, "output", book, model)
+      if os.path.isdir(md):
+        families["mood"] = [(md, md)]
 
-      for figure in sorted(os.listdir(md)):
-        fd = os.path.join(md, figure)
-        if not os.path.isdir(fd):
-          continue
-
+      for figure in sorted(families):
         files, notes, metrics, params = [], [], {}, []
-        for dirpath, dirnames, filenames in os.walk(fd):
-          dirnames.sort()
-          for fn in sorted(filenames):
-            full = os.path.join(dirpath, fn)
-            rel = os.path.relpath(full, ROOT)
-            if fn == "params.json":
-              params.append(rel)
-              continue
-            if fn.lower().endswith(".md"):
-              with open(full) as f:
-                notes.append({"path": rel, "name": fn, "text": f.read()})
-              continue
-            if fn.endswith(".json"):
-              payload = read_json(full)
-              if payload is not None:
-                # Keyed by path within the family, not by basename: the four
-                # per-smoother directories each hold a `metrics.json` and a
-                # basename key would leave only whichever was walked last.
-                metrics[os.path.relpath(full, fd)] = payload
-              continue
-            kind = classify(fn)
-            if kind:
-              # The variant subdirectory, when there is one, is the parameter
-              # setting the run used -- worth showing beside the file name.
-              sub = os.path.relpath(dirpath, fd)
-              files.append({
-                "path": rel,
-                "name": fn,
-                "kind": kind,
-                "variant": None if sub == "." else sub,
-              })
+        for fd, base in families[figure]:
+          for dirpath, dirnames, filenames in os.walk(fd):
+            dirnames.sort()
+            for fn in sorted(filenames):
+              full = os.path.join(dirpath, fn)
+              rel = os.path.relpath(full, ROOT)
+              if fn == "params.json":
+                params.append(rel)
+                continue
+              if fn.lower().endswith(".md"):
+                with open(full) as f:
+                  notes.append({"path": rel, "name": fn, "text": f.read()})
+                continue
+              if fn.endswith(".json"):
+                payload = read_json(full)
+                if payload is not None:
+                  # Keyed by path within the family, not by basename: the four
+                  # per-smoother directories each hold a `metrics.json` and a
+                  # basename key would leave only whichever was walked last.
+                  metrics[os.path.relpath(full, base)] = payload
+                continue
+              kind = classify(fn)
+              if kind:
+                # The variant subdirectory, when there is one, is the parameter
+                # setting the run used -- worth showing beside the file name.
+                sub = os.path.relpath(dirpath, base)
+                files.append({
+                  "path": rel,
+                  "name": fn,
+                  "kind": kind,
+                  "variant": None if sub == "." else sub,
+                })
 
         entry = {
           "book": book,

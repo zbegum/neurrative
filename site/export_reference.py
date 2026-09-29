@@ -13,14 +13,18 @@ knowledge about the code, not something in it.
 """
 
 import ast
+import glob
 import json
 import os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE = os.path.dirname(os.path.abspath(__file__))
-VIZ = os.path.join(ROOT, "visualization")
 GEO = os.path.join(ROOT, "geometry")
-PRE = os.path.join(ROOT, "preprocess")
+COMMON = os.path.join(ROOT, "common")
+# Every folder that holds runnable scripts, in pipeline order.
+SCRIPT_DIRS = ["preprocess", "common", "projection", "surface/points",
+               "surface/kernel", "surface/bspline", "surface/poisson",
+               "surface/mood", "arc/validation", "arc_on_surface"]
 
 # The book and model everything below is reported for.
 BOOK, MODEL = "alice_wonderland", "bge-m3"
@@ -66,14 +70,14 @@ PROVENANCE = [
     "what": "Uniform B-spline regression through the windowed arc, in 2-D "
             "or 3-D: control points and each window's position on the curve "
             "are optimised jointly.",
-    "impl": "narrative-arc/vendor/bspline_regression/ (vendored Python), "
-            "set up by narrative-arc/narrative_arc/curves.py",
+    "impl": "arc/vendor/bspline_regression/ (vendored Python), "
+            "set up by arc/narrative_arc/curves.py",
     "origin": "github.com/rstebbing/bspline-regression, MIT. Only the files on "
               "the fitting path are vendored; see its PROVENANCE.md.",
     "links": [["rstebbing/bspline-regression",
                "https://github.com/rstebbing/bspline-regression"]],
     "note": "Replaced the earlier JS bridge (mirsaeedi/spline-curve-fitting "
-            "via fit_bspline.js) together with visualization/narrative_arc.py.",
+            "via fit_bspline.js) together with the old 2-D arc script.",
   },
   {
     "name": "Nadaraya–Watson kernel regression",
@@ -110,7 +114,7 @@ PROVENANCE = [
     "name": "PCA / t-SNE / UMAP",
     "what": "Dimensionality reduction from the embedding to a 2-D or 3-D plane.",
     "impl": "scikit-learn (PCA, TSNE) and umap-learn (UMAP), called from "
-            "visualization/embedding.py and friends.",
+            "projection/embedding.py and friends.",
     "origin": "Third-party libraries, unmodified.",
     "links": [
       ["umap-learn", "https://github.com/lmcinnes/umap"],
@@ -159,31 +163,36 @@ FLOW = [
    "processed.json → embeddings.npy (789 × 1024 for bge-m3)"),
   ("annotate", "Annotate", ["preprocess/get_annotations.py"],
    "processed.json → paragraph_scores.json (6 emotions)"),
-  ("project", "Project", ["visualization/embedding.py", "visualization/emotion_3d.py",
-                          "visualization/projection_comparison.py"],
+  ("project", "Project", ["projection/embedding.py", "projection/emotion_3d.py",
+                          "projection/projection_comparison.py",
+                          "projection/chain_umap.py"],
    "embeddings.npy → 2-D / 3-D coordinates"),
   ("fit", "Fit the landscape",
-   ["visualization/raw_points.py",
-    "visualization/smooth_gaussian_nw.py", "visualization/smooth_epanechnikov_nw.py",
-    "visualization/smooth_local_linear.py", "visualization/smooth_loess.py",
-    "visualization/emotion_surface.py",
-    "visualization/bandwidth_grid.py", "visualization/smooth_grid.py"],
-   "raw scores over the PCA plane → z = f(PC1, PC2), all under output/…/surface/"),
+   ["surface/points/raw_points.py",
+    "surface/kernel/gaussian.py", "surface/kernel/epanechnikov.py",
+    "surface/kernel/local_linear.py", "surface/kernel/loess.py",
+    "surface/kernel/loo.py",
+    "surface/kernel/bandwidth_grid.py", "surface/kernel/smooth_grid.py",
+    "surface/bspline/fit_surface.py", "surface/poisson/fit_surface.py",
+    "surface/mood/run.py"],
+   "raw scores over the PCA plane → z = f(PC1, PC2), one folder per method "
+   "under surface/"),
   ("arc", "Trace the arc",
-   ["visualization/windows.py"],
+   ["common/windows.py"],
    "sliding window over reading order → the windowed series; drawn, fitted "
-   "and swept into a tube by narrative-arc/"),
+   "and swept into a tube by arc/"),
   ("validate", "Validate the arc",
-   ["visualization/arc_comparison.py", "visualization/arc_comparison_projections.py"],
+   ["arc/validation/arc_comparison.py",
+    "arc/validation/arc_comparison_projections.py"],
    "arc vs raw path, and vs a shuffled-order control"),
   ("arc3d", "The arc in 3-D",
-   ["visualization/narrative_arc_3d.py", "visualization/arc_on_surface.py",
-    "visualization/arc_emotion_axis.py", "visualization/arc_smooth.py",
-    "visualization/arc_emotion_smoother_grid.py"],
+   ["arc_on_surface/narrative_arc_3d.py", "arc_on_surface/arc_on_surface.py",
+    "arc_on_surface/arc_emotion_axis.py", "arc_on_surface/arc_smooth.py",
+    "arc_on_surface/arc_emotion_smoother_grid.py"],
    "the arc + a third axis → narrative_arc_3d/{height_from_text,"
    "height_from_terrain,mood_axis,curve_smoothing}/"),
   ("geodesic", "Geodesics",
-   ["visualization/geodesic_arrows.py", "visualization/geodesic_interactive.py"],
+   ["arc_on_surface/geodesic_arrows.py", "arc_on_surface/geodesic_interactive.py"],
    "paths measured along the terrain, not across the plane"),
 ]
 
@@ -243,7 +252,7 @@ def parse_script(path):
       fname = fn.attr if isinstance(fn, ast.Attribute) else \
               fn.id if isinstance(fn, ast.Name) else None
       if fname in ("add_common_args", "run"):
-        inherits.add("visualization/smooth_common.py")
+        inherits.add("common/smooth_common.py")
 
     # --flags
     if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
@@ -332,7 +341,7 @@ def resolve_inherited(scripts):
 
 def path_constants():
   """The paths.* constants and the directory names they resolve to."""
-  tree = ast.parse(open(os.path.join(VIZ, "paths.py")).read())
+  tree = ast.parse(open(os.path.join(COMMON, "paths.py")).read())
   out = {}
   for node in tree.body:
     if isinstance(node, ast.Assign):
@@ -346,30 +355,30 @@ def path_constants():
 
 def chosen_params():
   """What the tuning actually picked for this book/model, per method/emotion."""
-  base = os.path.join(ROOT, "output", BOOK, MODEL, "surface")
   picked = {}
-  if not os.path.isdir(base):
-    return picked
-  for method in sorted(os.listdir(base)):
-    f = os.path.join(base, method, "metrics.json")
-    if not os.path.exists(f):
-      continue
-    try:
-      rows = json.load(open(f))
-    except ValueError:
-      continue
-    if not isinstance(rows, list):
-      continue
-    for r in rows:
-      if r.get("baseline_rmse") is None:
+  # <method>/<variant>/metrics.json under each surface folder's output.
+  for base in sorted(glob.glob(os.path.join(ROOT, "surface", "*", "output",
+                                            BOOK, MODEL))):
+    for f in sorted(glob.glob(os.path.join(base, "**", "metrics.json"),
+                              recursive=True)):
+      method = os.path.relpath(f, base).split(os.sep)[0]
+      try:
+        rows = json.load(open(f))
+      except ValueError:
         continue
-      picked.setdefault(method, {})[r["emotion"]] = r.get("params")
+      if not isinstance(rows, list):
+        continue
+      for r in rows:
+        if r.get("baseline_rmse") is None:
+          continue
+        picked.setdefault(method, {})[r["emotion"]] = r.get("params")
   return picked
 
 
 def main():
   scripts = {}
-  for folder, prefix in ((VIZ, "visualization"), (PRE, "preprocess")):
+  for prefix in SCRIPT_DIRS:
+    folder = os.path.join(ROOT, prefix)
     for fn in sorted(os.listdir(folder)):
       if not fn.endswith(".py"):
         continue

@@ -37,7 +37,7 @@ case. So we implement the method with no 4-D machinery and no mesh solver:
     by a distance penalty, matching the paper's own reading of the method.
 
 The emotion terrain is not used here; it is for *drawing* the smoothed arc (see
-visualization/arc_smooth.py). Smoothing on the true curved terrain would need a
+arc_on_surface/arc_smooth.py). Smoothing on the true curved terrain would need a
 custom-metric geodesic (FlipOut) we do not vendor; the penalty phi, not the
 terrain's curvature, is what does the smoothing.
 """

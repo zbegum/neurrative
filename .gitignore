@@ -1,6 +1,6 @@
-# generated figures and intermediate results (rebuild with the scripts)
+# generated figures and intermediate results, one output/ per step folder
+# (rebuild with the scripts)
 output/
-mood_surface/figures/
 site/reference.js
 site/data.js
 old/
@@ -19,7 +19,7 @@ __pycache__/
 *.o
 *.so
 *.dylib
-closed-surface/vendor/PoissonRecon/Bin/
+surface/poisson/vendor/PoissonRecon/Bin/
 
 # editors / OS
 .DS_Store

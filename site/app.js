@@ -310,16 +310,17 @@ const CONFLICTS = [
   ["Four different terrains are all called “the emotion surface”",
    `geodesics use <code>gaussian_nw</code> h=0.2; arc-on-surface and mood use
     0.15; <code>narrative_arc_3d.py</code> defaults to <code>local_linear</code>
-    (which can leave [0,1]); <code>emotion_surface.py</code> picks its own h per
+    (which can leave [0,1]); <code>surface/kernel/loo.py</code> picks its own h per
     emotion.`],
-  ["Two incompatible mood-axis definitions",
-   `<code>narrative_arc_3d.py --z-mode spectrum</code> orders
-    <em>danger, sadness, …</em> with a raw score-weighted centre of mass;
-    <code>arc_emotion_axis.py</code> orders <em>sadness, danger, …</em> with a
-    softmax over rank-normalized prominence.`],
+  ["Two weightings of one mood axis",
+   `Every mood axis now shares one spectrum order and one normalizer
+    (<code>surface/mood/mood.py</code>). They still weight differently:
+    <code>narrative_arc_3d.py --z-mode spectrum</code> takes a raw
+    score-weighted centre of mass, while <code>arc_emotion_axis.py</code> and
+    <code>surface/mood</code> blend rank-normalized scores.`],
   ["Window parameters differ per book",
    `Alice's arcs use window 10 / stride 5. Script defaults disagree:
-    <code>windows.py</code> and <code>narrative-arc/</code> 40/20,
+    <code>windows.py</code> and <code>arc/</code> 40/20,
     <code>narrative_arc_3d.py</code> 25/12, <code>arc_comparison.py</code> 10/5.`],
   ["The validation contradicts most of the arc output",
    `<code>arc_comparison</code> finds t-SNE/UMAP arcs are almost entirely
@@ -337,7 +338,7 @@ function renderFlags() {
   const stale = groups.filter((g) => !g.params.length && g.n_images);
   const n = stale.reduce((s, g) => s + g.n_images, 0);
   const dyn = n ? [[`${n} figures carry no provenance`,
-    `Written before <code>visualization/paths.py</code>: no
+    `Written before <code>common/paths.py</code>: no
      <code>params.json</code>, no variant directory, so their settings are not
      recoverable. Re-run the family to replace them.`]] : [];
 
