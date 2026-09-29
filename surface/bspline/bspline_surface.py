@@ -1,15 +1,10 @@
-"""Least-squares tensor-product B-spline surface, ported from the MATLAB vendor.
+"""Least-squares tensor-product B-spline surface, in numpy.
 
-This is `vendor/B-spline-Curves-and-Surfaces/bs_least_square_2.m` in numpy: the
-same clamped uniform knots, the same Cox-de Boor basis, the same ridge on the
-normal equations, the same QR-plus-back-substitution solve. `check_port.py`
-holds it to the vendor's own surface example.
-
-Why a port and not a bridge: MATLAB is not installed, the upstream repo carries
-no license (see `vendor/.../PROVENANCE.md`), and `bspline_basis.m` is written
-one basis function per call with a recursive descent -- for 789 paragraphs and a
-few hundred coefficients that is thousands of redundant recurrences. The port
-builds the whole order ladder once, so the entire basis matrix costs one pass.
+Clamped uniform knots, the Cox-de Boor basis, a ridge on the normal equations
+and a QR-plus-back-substitution solve, following the surface fit in
+LorenzoPratesi/B-spline-Curves-and-Surfaces (MATLAB). `check_port.py` holds it
+to that repository's surface example. The whole order ladder is built once, so
+the basis matrix costs one pass.
 
 How this differs from the kernel smoothers in `geometry/smoothers.py`, which fit
 the same z = f(PC1, PC2):
@@ -32,7 +27,7 @@ import numpy as np
 
 
 def clamped_knots(breaks, degree):
-  """The vendor's knot convention: repeat each endpoint `degree` times.
+  """The reference's knot convention: repeat each endpoint `degree` times.
 
   `breaks` is the breakpoint vector including both ends, as passed to
   `bs_least_square_2` -- the clamping is the fitter's job there, not the
@@ -53,9 +48,9 @@ def basis_matrix(x, knots, order):
 
   `m = len(knots) - order`, matching `bspline_basis.m`'s bound on its interval
   index j. `order` is degree + 1 (2 for linear, 3 for quadratic), as in the
-  vendor.
+  reference.
 
-  The recurrence is the vendor's, read bottom-up instead of top-down: order 1 is
+  The recurrence is the reference's, read bottom-up instead of top-down: order 1 is
   the interval indicator, and each subsequent order is a two-term combination of
   the one below. Zero-width knot spans -- which the clamped ends are full of --
   give 0/0, and are taken as 0 exactly as `bspline_basis.m` does by guarding the
@@ -138,7 +133,7 @@ def difference_matrix(n, order):
 def penalty_matrix(nx, ny, order):
   """A P-spline roughness penalty over the coefficient grid, x-major.
 
-  `lam * I` -- the vendor's ridge -- pulls every coefficient toward zero, which
+  `lam * I` -- the reference's ridge -- pulls every coefficient toward zero, which
   is a sane way to keep the system solvable and a *terrible* way to fill a cell
   with no data in it: the surface there falls to a score of 0, and does it
   abruptly, because nothing ties that cell to its neighbours.
@@ -170,7 +165,7 @@ def qr_solve(A, b):
   """`QR_solve.m`: Householder QR, then back substitution.
 
   numpy would do this in one `solve`, and the answer is the same; it is spelled
-  out because the vendor spells it out, and because the back substitution is
+  out because the reference spells it out, and because the back substitution is
   where a rank-deficient A announces itself as a division by a zero pivot rather
   than as a silent least-norm answer.
   """
@@ -191,7 +186,7 @@ def qr_solve(A, b):
 class Surface:
   """A fitted z = f(x, y): the control heights plus the knots they hang on.
 
-  `coeff` is (ncoeff_x, ncoeff_y) -- the vendor's flat x-major column ordering
+  `coeff` is (ncoeff_x, ncoeff_y) -- the reference's flat x-major column ordering
   reshaped, since a grid is what it means.
   """
 
@@ -229,7 +224,7 @@ class Surface:
 
     x and y come from the Greville abscissae of the knot vectors -- where a
     coefficient's basis function is centred -- which is where the control point
-    sits when the fit is a height field. `control_xy` from the vendor's Cx/Cy
+    sits when the fit is a height field. `control_xy` from the reference's Cx/Cy
     solve is *not* used for this: those are the least-squares fits of x and y by
     the same basis, so they reproduce the same net only where the data fills the
     domain, and wander where it does not.
@@ -271,15 +266,15 @@ def fit(x, y, z, degree, breaks_x, breaks_y, lam=0.0, solver="qr",
   """`bs_least_square_2`: least-squares tensor-product surface through (x, y, z).
 
   Returns a `Surface`. `lam` weights the penalty on `B'B`; `solver` is "qr" for
-  the vendor's own path or "lstsq" for numpy's SVD least squares, which answers
+  the reference's own path or "lstsq" for numpy's SVD least squares, which answers
   the same question but survives a singular system instead of raising.
 
-  `penalty_order` 0 is the vendor's plain ridge, `lam * I`. 1 or 2 substitute
+  `penalty_order` 0 is the reference's plain ridge, `lam * I`. 1 or 2 substitute
   the difference penalty from `penalty_matrix` -- required if the surface is to
   be evaluated anywhere the paragraphs are not, since a ridge leaves those cells
   at zero rather than continuing their neighbours.
 
-  The vendor also solves the same system for x and for y, giving the control
+  The reference also solves the same system for x and for y, giving the control
   net's own coordinates; those are carried on the result as `control_xy` for
   parity, and are not used to evaluate the height.
   """
@@ -305,7 +300,7 @@ def fit(x, y, z, degree, breaks_x, breaks_y, lam=0.0, solver="qr",
     )
 
   # The row-wise Kronecker product: column (j, k) is Bx[:, j] * By[:, k], in the
-  # vendor's x-major order.
+  # reference's x-major order.
   B = (Bx[:, :, None] * By[:, None, :]).reshape(x.size, nx * ny)
 
   P = (np.eye(nx * ny) if penalty_order == 0

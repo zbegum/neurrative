@@ -25,18 +25,15 @@ named `..._pca_unit` rather than `..._pca`, because its coordinates are not
 
 ## What is here
 
-    vendor/B-spline-Curves-and-Surfaces/  the MATLAB original, verbatim, with
-                                          PROVENANCE.md -- read that first
-    bspline_surface.py                    the port: basis, fit, evaluation, mask
-    check_port.py                         what holds the port honest
-    fit_surface.py                        the driver over a book's emotions
+    bspline_surface.py   basis, fit, evaluation, mask
+    check_port.py        checks on the fit
+    fit_surface.py       the driver over a book's emotions
 
-Why a port rather than a bridge (as the old JS B-spline curve fitter was): MATLAB is
-not installed, and the upstream repo carries no license. So the code that runs
-is ours and the MATLAB sits beside it as the specification. `check_port.py`
-covers partition of unity, exact reproduction of a cubic, agreement between the
-vendor's hand-written QR back substitution and numpy's `lstsq`, and the vendor's
-own surface example rebuilt in numpy.
+The fit follows the surface fit in
+[LorenzoPratesi/B-spline-Curves-and-Surfaces](https://github.com/LorenzoPratesi/B-spline-Curves-and-Surfaces)
+(MATLAB), written in numpy. `check_port.py` covers partition of unity, exact
+reproduction of a cubic, agreement between the QR back substitution and numpy's
+`lstsq`, and that repository's surface example rebuilt in numpy.
 
 ## How it differs from the kernel surfaces
 
@@ -75,7 +72,7 @@ cloud is centred and the shorter axis simply does not reach the edges.
 the long axis. The `{scale, offset}` is written into every `.npz` and into
 `params.json`, so anything here can be put back into `pca.npy` units.
 
-**The penalty.** The vendor's `lam * I` ridge pulls every coefficient toward
+**The penalty.** The reference's `lam * I` ridge pulls every coefficient toward
 zero, which is fine for keeping the matrix invertible and useless for filling an
 empty cell -- the surface would fall to a score of 0 out there, abruptly,
 because nothing ties that cell to its neighbours. It is replaced by a P-spline

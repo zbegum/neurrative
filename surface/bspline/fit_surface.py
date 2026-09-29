@@ -1,7 +1,7 @@
 """Fit a B-spline surface to (PC1, PC2, emotion score), one per emotion.
 
 The same height field `surface/kernel/loo.py` recovers with a kernel
-smoother, fitted instead with the vendored least-squares B-spline. z = f(x, y)
+smoother, fitted instead with a least-squares B-spline. z = f(x, y)
 is a genuine function over the PCA plane -- PCA is linear and metric, so each
 paragraph has one well-defined (x, y) -- which is what makes the tensor-product
 form applicable at all. It is not applicable over UMAP or t-SNE, and there is no
@@ -22,7 +22,7 @@ different claims, not different renderings:
   unit      PC1 and PC2 are rescaled into [0, 1] and the surface covers the
             whole square, paragraphs or no paragraphs. Filling the empty part
             needs a penalty that ties neighbouring coefficients together rather
-            than the vendor's ridge, which would drop those cells to zero -- see
+            than the reference's ridge, which would drop those cells to zero -- see
             `penalty_matrix`. The support mask is still computed, saved, and
             drawn as the solid part of the figure with the extension faded
             behind it, because the extension is an extension and the figure
@@ -222,7 +222,7 @@ def draw_control_net(ax, surface):
 
   Worth drawing only when there are few enough of them to read, which is the
   case `--control` exists for. The points sit at the Greville abscissae, not at
-  the vendor's Cx/Cy least-squares solve -- see `Surface.control_grid`.
+  the reference's Cx/Cy least-squares solve -- see `Surface.control_grid`.
   """
   cx, cy, cz = surface.control_grid()
   for i in range(cx.shape[0]):
@@ -364,7 +364,7 @@ def main():
                            "PC1/PC2 into [0, 1] and cover the whole square.")
   parser.add_argument("--degree", default=None, type=int,
                       help="Spline degree per axis. Default 3 (cubic); the "
-                           "vendor's own surface example uses 4. Lowered "
+                           "reference's own surface example uses 4. Lowered "
                            "automatically if --control asks for fewer "
                            "coefficients than the degree can carry.")
   parser.add_argument("--knots", default=None, type=int,
@@ -381,7 +381,7 @@ def main():
                            "roughness penalty, which is the smoothing knob).")
   parser.add_argument("--penalty-order", default=None, type=int,
                       choices=(0, 1, 2),
-                      help="0: the vendor's ridge. 1: first differences, so the "
+                      help="0: the reference's ridge. 1: first differences, so the "
                            "surface flattens off the data. 2: second "
                            "differences, so it continues the edge slope. "
                            "Default: 0 under --domain support, 1 under unit.")
@@ -600,7 +600,7 @@ def main():
   paths.stamp(output_dir, __file__, args,
               stack="surface/bspline/bspline_surface",
               estimator="least-squares tensor-product B-spline "
-                        "(vendor: LorenzoPratesi/B-spline-Curves-and-Surfaces)",
+                        "(after LorenzoPratesi/B-spline-Curves-and-Surfaces)",
               emotions=selected, chosen=chosen, search=searches,
               support_radius=radius,
               transform=None if transform is None else {

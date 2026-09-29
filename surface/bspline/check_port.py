@@ -1,11 +1,9 @@
-"""Hold the port to the vendor's own surface example.
+"""Hold the fit to the surface example of LorenzoPratesi/B-spline-Curves-and-Surfaces.
 
-`vendor/.../example/ex_15_bspline_surf_ls.m` fits log(4x^2 + y^2) on a 100x100
+That example (`ex_15_bspline_surf_ls.m`) fits log(4x^2 + y^2) on a 100x100
 grid over [-3, 3] x [-10, 10], with uniform noise of amplitude 0.5, degree 4 and
 24 knots per axis, and reports a relative RMSE against the noiseless truth.
-MATLAB is not installed here, so this rebuilds that setup in numpy and checks
-the port reaches the same accuracy -- agreement with the example, not with a
-MATLAB run. See PROVENANCE.md.
+This rebuilds that setup in numpy and checks the fit reaches the same accuracy.
 
 The other three checks are properties, not comparisons, and they are the ones
 that would actually catch a wrong index in the recurrence:
@@ -16,7 +14,7 @@ that would actually catch a wrong index in the recurrence:
   polynomial exactness a degree-d spline reproduces any degree-d polynomial
                        exactly. This is the strongest single statement about the
                        basis, and it fails for any misplaced knot.
-  solver agreement     the vendor's QR path and numpy's lstsq give the same
+  solver agreement     the QR path and numpy's lstsq give the same
                        coefficients, so the hand-written back substitution is
                        not quietly wrong.
 
@@ -76,7 +74,7 @@ def check_solvers_agree():
 
 
 def check_ex_15():
-  """The vendor's own example, rebuilt."""
+  """The reference example, rebuilt."""
   degree, nx, ny, nknots = 4, 100, 100, 24
   rng = np.random.default_rng(15)
 
@@ -159,13 +157,12 @@ def check_extension_flattens():
 
 
 def main():
-  print("checking the port against vendor/B-spline-Curves-and-Surfaces:")
+  print("checking the B-spline fit:")
   check_partition_of_unity()
   check_polynomial_exactness()
   check_solvers_agree()
   check_ex_15()
-  print("checking the extension machinery, which the vendor has no counterpart "
-        "for:")
+  print("checking the extension machinery:")
   check_unit_square()
   check_extension_flattens()
   print("all checks passed.")

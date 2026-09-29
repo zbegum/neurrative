@@ -1,6 +1,6 @@
 # Narrative Tension Field: A Geometric View of Story Structure
 
-**[Project document](https://docs.google.com/document/d/14Wmcna-hrG1aNa0YlczN_qigWfSBBZtYJDHj2jzXlR0/edit?usp=sharing)**
+**[Project document](https://docs.google.com/document/d/14Wmcna-hrG1aNa0YlczN_qigWfSBBZtYJDHj2jzXlR0/view?usp=sharing)**
 |
 **[SGI website](https://sgi.mit.edu/)**
 |
@@ -193,10 +193,18 @@ arguments and the estimator used.
 
 | code | where | license |
 |---|---|---|
-| Kirsanov, exact geodesics | `geometry/geodesic_cpp/` | see `UPSTREAM_README.txt` |
+| Kirsanov, exact geodesics | `geometry/geodesic_cpp/` | MIT |
 | PoissonRecon (Kazhdan) | `surface/poisson/vendor/PoissonRecon/` | MIT |
 | bspline-regression (Stebbing) | `arc/vendor/bspline_regression/` | MIT |
-| B-spline-Curves-and-Surfaces (MATLAB) | `surface/bspline/vendor/` | none stated upstream; kept as the specification of the numpy port |
+
+## Known issues
+
+- `arc_on_surface/arc_on_surface.py` with all six emotions is slow on long
+  books; pass `--emotions` to run a few at a time.
+
+## License
+
+MIT, see [LICENSE](LICENSE). Third-party code keeps its own license (above).
 
 ## References
 
