@@ -101,6 +101,51 @@ python arc_on_surface/geodesic_arrows.py --book alice_wonderland --model bge-m3
 
 The READMEs in each folder list every script and its options.
 
+## Interactive page
+
+**To just look at it:** open `docs/interactive/index.html` in a browser (it is
+committed; it needs an internet connection for d3 and three.js). Three tabs,
+all on *Alice's Adventures in Wonderland*:
+
+- **story map** - the arc crossing an emotion landscape (kernel, B-spline or
+  Poisson surface), flat or in 3-D, with the text beside it
+- **mood surface** - the surface whose height and colour are the emotion
+  (sadness to humor), with the arc lying on it
+- **arc 3-D** - the arc in embedding space (PCA / UMAP / t-SNE) with its
+  B-spline and the emotion tube
+
+**Controls:**
+
+| | |
+|---|---|
+| ‹ ▶ › | previous chapter, play / pause (the whole book in ~90 s), next chapter |
+| timeline | drag or click to move through the book |
+| ← → (shift: 20), space, [ ] | step, play / pause, previous / next chapter |
+| 3D, axes, ride, tube | switches: 3-D view, axis labels, ride the arc (camera on the curve, looking ahead), emotion tube |
+| mouse | drag to turn a 3-D view, scroll to zoom; click the map (double-click in 3-D) to jump to a paragraph |
+
+**To rebuild it** after changing the code or the data, from the repository root:
+
+```bash
+# what the three tabs read (skip any step whose output you already have)
+python projection/embedding.py --book alice_wonderland --model bge-m3
+python surface/kernel/gaussian.py --book alice_wonderland --model bge-m3
+python surface/bspline/fit_surface.py --book alice_wonderland --model bge-m3 --grid
+bash surface/poisson/build_vendor.sh  # once: builds PoissonRecon
+python surface/poisson/fit_surface.py --book alice_wonderland --model bge-m3 --open
+python arc/curve/arc_3d.py --book alice_wonderland --model bge-m3 --fit
+python arc/tube/arc_tube.py --book alice_wonderland --model bge-m3 --methods pca
+
+# build the three views and the tabbed page -> docs/interactive/index.html
+python docs/interactive/build.py
+```
+
+A surface method that has not been run is simply left out of the story map.
+Each view can also be built on its own (`arc_on_surface/story_map.py`,
+`surface/mood/mood_viewer.py`, `arc/curve/arc_viewer.py`, each with `--books`
+to include other books); the shared page code is `common/viewer.py` and
+`common/web/`. More in [docs/interactive](docs/interactive/README.md).
+
 ## Data
 
 | book | paragraphs | embeddings | emotion scores |
