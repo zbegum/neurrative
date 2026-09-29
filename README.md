@@ -36,6 +36,7 @@ closed-surface/   global fit #2: screened Poisson reconstruction (watertight sol
 mood_surface/     six emotions -> one mood height; the arc as geodesics on it
 narrative-arc/    the arc itself: 2-D/3-D paths, B-spline fit, tube, explorers
 site/             a pipeline reference page generated from the code
+docs/figures/     selected projection and sweep figures, with captions
 ```
 
 Each of `geometry/`, `b-surface/`, `closed-surface/`, `mood_surface/` and
@@ -104,6 +105,11 @@ Every script takes `--book` and `--model` and writes under
   `G_semantic` t-conorm `beta * G_chain`. `beta = 0` is plain UMAP; the output
   is the trade-off curve, not one layout.
 - `inspect_points.py`: trace a point on a plot back to its paragraph.
+
+The projection trials, with their numbers, are collected in
+**[docs/figures](docs/figures/README.md)**: PCA keeps the least local
+structure in every book, and adding reading order to UMAP trades
+trustworthiness for order along a smooth curve.
 
 ## The emotion landscape
 
