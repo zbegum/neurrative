@@ -4,8 +4,8 @@ through it, and the narrative tube around it, with the text beside it and a
 timeline below.
 
 Reads what arc_3d.py and arc_tube.py saved (window 40, stride 20, the default
-fit), for PCA, UMAP and t-SNE. The tube is the PCA emotion tube; choosing an
-emotion marks that emotion's ridge on it.
+fit), for PCA, UMAP and t-SNE. The tube is the PCA emotion tube: one ridge per
+emotion, each in that emotion's colour, pushed out where the emotion is strong.
 
 Example (from the repository root):
 
@@ -25,6 +25,7 @@ sys.path[1:1] = [_ARC, os.path.dirname(_ARC), os.path.join(os.path.dirname(_ARC)
 
 import viewer as V
 from narrative_arc import paths as arc_paths
+from surface.mood.mood import EMOTION_COLOR, SPECTRUM
 from narrative_arc.windows import window_bounds
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -61,7 +62,8 @@ def book_data(book, model):
       d = np.load(t)
       data["tube"] = {"vertices": np.round(d["vertices"], 4).ravel().tolist(),
                       "faces": d["faces"].ravel().tolist(),
-                      "labels": [str(x) for x in d["labels"]]}
+                      "labels": [str(x) for x in d["labels"]],
+                      "colors": [EMOTION_COLOR[str(x)] for x in d["labels"]]}
   return data
 
 
@@ -71,7 +73,7 @@ def main():
   ap.add_argument("--books", nargs="+", default=["alice_wonderland", "pride_and_prejudice", "hamlet"])
   ap.add_argument("--output", default=os.path.join(_ARC, "output", "arc_viewer.html"))
   args = ap.parse_args()
-  data = {"emotions": V.EMOTIONS,
+  data = {"emotions": V.EMOTIONS, "spectrum": SPECTRUM, "colors": EMOTION_COLOR,
           "books": {b: book_data(b, args.model) for b in args.books}}
   V.render(os.path.join(HERE, "arc_viewer_template.html"), data, args.output)
 

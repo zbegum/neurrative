@@ -9,6 +9,9 @@ const $ = (id) => document.getElementById(id);
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const ramp = () => css("--ramp").split(",").map((s) => s.trim());
 const rampAt = (t) => d3.piecewise(d3.interpolateRgb, ramp())(Math.max(0, Math.min(1, t)));
+// Reading order, start (0) to end (1): plasma, as in the static arc figures, without
+// its darkest end so the start stays visible on a dark page.
+const orderAt = (t) => d3.interpolatePlasma(0.08 + 0.84 * Math.max(0, Math.min(1, t)));
 
 // ---- reading: text panel, timeline, keys --------------------------------------
 function setText(book, i, chapterEl, textEl) {
@@ -20,8 +23,9 @@ function setText(book, i, chapterEl, textEl) {
 function Timeline(el, onSeek) {
   let tx = null;
   const svg = d3.select(el);
-  // stops: optional [[value, colour], ...] -- the curve is coloured by its value
-  function draw(series, chapter, stops = null) {
+  // stops: optional [[value, colour], ...] -- the curve is coloured by its value;
+  // order: draw a thin strip in the reading-order colours (the key to a coloured arc)
+  function draw(series, chapter, stops = null, { order = false } = {}) {
     const W = el.clientWidth, H = el.clientHeight, m = { l: 16, r: 16, t: 14, b: 18 };
     const N = series.length;
     tx = d3.scaleLinear([0, N - 1], [m.l, W - m.r]);
@@ -49,6 +53,13 @@ function Timeline(el, onSeek) {
         .attr("d", d3.area().x((v, j) => tx(j)).y0(H - m.b).y1(ty).curve(d3.curveMonotoneX));
       svg.append("path").datum(series).attr("fill", "none").attr("stroke", paint)
         .attr("stroke-width", 2).attr("d", d3.line().x((v, j) => tx(j)).y(ty).curve(d3.curveMonotoneX));
+    }
+    if (order) {
+      const id = "tl-order-" + Math.random().toString(36).slice(2, 8);
+      const g = svg.append("defs").append("linearGradient").attr("id", id);
+      d3.range(11).forEach((k) => g.append("stop").attr("offset", k / 10).attr("stop-color", orderAt(k / 10)));
+      svg.append("rect").attr("x", tx(0)).attr("width", tx(N - 1) - tx(0))
+        .attr("y", H - m.b + 7).attr("height", 3).attr("rx", 1.5).attr("fill", `url(#${id})`);
     }
     svg.append("line").attr("class", "cursor").attr("y1", m.t - 6).attr("y2", H - m.b)
       .attr("stroke", css("--ink")).attr("stroke-width", 1.5);
@@ -219,11 +230,23 @@ function terrain(field, n, extent, { height = (v) => v, lo = 0, hi = 1, keep = (
   }));
 }
 
-// A smooth thin tube through world-space points.
-function curve(points, radius, color) {
+// A smooth thin tube through world-space points. With `colorAt(t)`, t in [0, 1]
+// along the tube, each ring takes its own colour; `opacity` < 1 fades it.
+function curve(points, radius, color, { colorAt = null, opacity = 1 } = {}) {
   const path = new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p)));
-  const g = new THREE.TubeGeometry(path, Math.max(64, points.length * 6), radius, 8, false);
-  return new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color, roughness: 0.6 }));
+  const segs = Math.max(64, points.length * 6), radial = 8;
+  const g = new THREE.TubeGeometry(path, segs, radius, radial, false);
+  const mat = { roughness: 0.6, transparent: opacity < 1, opacity };
+  if (colorAt) {
+    const col = new Float32Array(g.attributes.position.count * 3);
+    for (let i = 0; i <= segs; i++) {
+      const c = new THREE.Color(colorAt(i / segs));
+      for (let j = 0; j <= radial; j++) col.set([c.r, c.g, c.b], 3 * (i * (radial + 1) + j));
+    }
+    g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    return new THREE.Mesh(g, new THREE.MeshStandardMaterial({ ...mat, vertexColors: true }));
+  }
+  return new THREE.Mesh(g, new THREE.MeshStandardMaterial({ ...mat, color }));
 }
 
 // A text label at a 3-D point (muted, small).
