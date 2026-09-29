@@ -123,8 +123,7 @@ ORDER_WINDOW = 5
 # a scatter -- every pair of colors can end up adjacent, and on the all-pairs
 # gate the reference categorical palette only clears its floors for four slots.
 # Each also gets its own marker: the worst all-pairs CVD separation here is tritan
-# dE 5.8, which is legal only alongside a channel that is not color. Same
-# reasoning, and the same palette, as EMOTION_STYLE in data.py.
+# dE 5.8, which is legal only alongside a channel that is not color.
 CAST_STYLE = [("#2a78d6", "o"), ("#008300", "s"),
               ("#e87ba4", "D"), ("#eda100", "^")]
 CAST_OTHER = ("#b0afa8", ".")

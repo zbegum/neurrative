@@ -49,7 +49,7 @@ def _arc(ax, GX, GY, Z, coords, idx, alpha, n_paragraphs):
 def grid_blends(coords, emotions, scores, chapters, args):
     """One surface per blend: how six emotions collapse to one readable height."""
     blends = mood_mod.BLENDS
-    cols = 3
+    cols = 2
     rows = int(np.ceil(len(blends) / cols))
     fig = plt.figure(figsize=(6 * cols, 5.5 * rows))
     for k, b in enumerate(blends):
@@ -120,7 +120,7 @@ def grid_sweep(coords, emotions, scores, chapters, args):
     """Softmax temperature (rows) x surface bandwidth (columns).
 
     Only the softmax blend has a temperature, so this grid always uses it: a low
-    temperature snaps to the dominant emotion, a high one averages toward the
+    temperature snaps to the strongest emotion, a high one averages toward the
     middle. The bandwidth decides how far each paragraph's mood spreads.
     """
     temps, bws = args.temps, args.bandwidths

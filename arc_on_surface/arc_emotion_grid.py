@@ -8,12 +8,11 @@ windows' own emotion, which needs no surface, so a whole grid is cheap.
 
   rows    --sizes    window length: how much reading is pooled per point. Small =
           detailed and jumpy; large = a few broad movements.
-  cols    --temps    softmax temperature: small snaps to the dominant emotion (big
+  cols    --temps    softmax temperature: small snaps to the strongest emotion (big
           swings toward the poles), large averages (a flatter, safer line).
 
 Every panel shares the labelled emotion y-axis, so the same height means the same
-mood across the grid. Line color is reading progression; point color is the
-dominant emotion. Normalization (--norm rank) and line smoothing (--smooth) are
+mood across the grid. Line color is reading progression. Normalization (--norm rank) and line smoothing (--smooth) are
 held fixed so only the two swept knobs vary.
 
 Lands in arc_on_surface/output/<book>/<model>/arc_on_surface/<variant>/emotion_axis_grid.png,
@@ -42,7 +41,7 @@ sys.path[1:1] = [_ROOT, os.path.join(_ROOT, "common")]
 import paths
 from data import load_paragraphs, load_scores
 from arc_emotion_axis import (normalizer, mood, smooth1d, window_bounds,
-                              EMOTION_COLOR, DEFAULT_ORDER)
+                              DEFAULT_ORDER)
 
 
 def mood_line(matrix, emotions, order, positions, size, temp, norm, smooth):
@@ -54,9 +53,7 @@ def mood_line(matrix, emotions, order, positions, size, temp, norm, smooth):
                             for s, e in windows]) for em in order])
   tf = [normalizer(matrix[:, emotions.index(em)], norm) for em in order]
   own_n = np.stack([f(own[i]) for i, f in enumerate(tf)])
-  m = smooth1d(mood(own_n, positions, temp), smooth)
-  dom = np.array(order)[np.argmax(own_n, axis=0)]
-  return centers, m, [EMOTION_COLOR.get(e, "#555") for e in dom]
+  return centers, smooth1d(mood(own_n, positions, temp), smooth)
 
 
 def main():
@@ -96,8 +93,8 @@ def main():
   for r, size in enumerate(args.sizes):
     for c, temp in enumerate(args.temps):
       ax = axes[r][c]
-      centers, m, dom_colors = mood_line(matrix, emotions, order, positions,
-                                         size, temp, args.norm, args.smooth)
+      centers, m = mood_line(matrix, emotions, order, positions,
+                               size, temp, args.norm, args.smooth)
       for p in positions:
         ax.axhline(p, color="0.9", lw=0.7, zorder=0)
       seg = np.stack([np.column_stack([centers[:-1], m[:-1]]),
@@ -105,8 +102,6 @@ def main():
       lc = LineCollection(seg, cmap="plasma", linewidth=2.0, zorder=2)
       lc.set_array(np.linspace(0, 1, len(centers) - 1))
       ax.add_collection(lc)
-      ax.scatter(centers, m, c=dom_colors, s=10, zorder=3,
-                 edgecolors="white", linewidths=0.2)
       ax.set_xlim(centers.min(), centers.max())
       # Robust zoom to the mood's actual range so movement fills each panel.
       lo, hi = np.nanpercentile(m, 1), np.nanpercentile(m, 99)
@@ -124,7 +119,7 @@ def main():
 
   fig.suptitle(f"Emotion-axis mood over reading order -- {args.book} / {args.model}\n"
                "rows: window size (detail vs breadth) | columns: temperature "
-               "(swing vs flat) | color = dominant emotion", fontsize=13)
+               "(swing vs flat) | color = reading order", fontsize=13)
   fig.tight_layout(rect=(0, 0, 1, 0.95))
   p = os.path.join(out_dir, "emotion_axis_grid.png")
   fig.savefig(p, dpi=160); plt.close(fig)

@@ -104,7 +104,7 @@ def run_umap(embeddings, specs, args, structure_dir):
   # The storyline is about reading order, so it is always colored that way.
   story = ColorSpec(
     "paragraph", np.arange(len(embeddings)), "plasma", "paragraph index",
-    None, None, None,
+    None, None,
   )
   scatter_plot(
     coords, story,
@@ -141,7 +141,7 @@ def run_model(book, model, args):
   print(f"\n=== {book} / {model} ===")
 
   paragraphs, embeddings = load_book(book, model)
-  specs = resolve_colors(args.color, book, paragraphs, args.min_score)
+  specs = resolve_colors(args.color, book, paragraphs)
   print(f"  coloring by: {', '.join(s.name for s in specs)}")
   check_perplexity([args.perplexity], len(embeddings), book)
 

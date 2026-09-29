@@ -61,10 +61,10 @@ def draw_sweep(cells, specs, n_cols, output_dir, method, axis_label, seed):
     sc = None
     for idx, (title, coords) in enumerate(cells):
       i, j = divmod(idx, n_cols)
-      sc, handles = panel(axes[i][j], coords, spec, title,
-                          f"{axis_label}-1", f"{axis_label}-2")
+      sc = panel(axes[i][j], coords, spec, title,
+                 f"{axis_label}-1", f"{axis_label}-2")
     save_grid(
-      fig, sc, handles,
+      fig, sc,
       f"{axis_label} parameter sweep (colored by {spec.name})",
       spec.label,
       os.path.join(output_dir, f"grid_{method}_{spec.name}_s{seed}.png"),
@@ -118,7 +118,7 @@ def run_model(book, model, args):
   print(f"\n=== {book} / {model} ===")
 
   paragraphs, embeddings = load_book(book, model)
-  specs = resolve_colors(args.color, book, paragraphs, args.min_score)
+  specs = resolve_colors(args.color, book, paragraphs)
   print(f"  coloring by: {', '.join(s.name for s in specs)}")
   check_perplexity(TSNE_PERPLEXITIES, len(embeddings), book)
 

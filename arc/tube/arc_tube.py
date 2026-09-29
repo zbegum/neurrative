@@ -20,7 +20,6 @@ Sections (--section):
 Outputs, under <output-dir>/<book>/<model>/arc_tube/<pca|umap|tsne>/:
 
   tube_*.png    static render
-  tube_*.html   rotatable, hover a window for its text
   tube_*.npz    vertices, faces, per-sample radii, window polygons
 
 Examples:
@@ -44,9 +43,8 @@ from narrative_arc import cli, paths
 from narrative_arc import tube as TB
 from narrative_arc import windows as W
 from narrative_arc.curves import FitOpts, fit_curve, fit_tag
-from narrative_arc.data import load_book, load_embeddings
-from narrative_arc.plot_3d import window_hover
-from narrative_arc.plot_tube import tube_html, tube_plot
+from narrative_arc.data import load_embeddings
+from narrative_arc.plot_tube import tube_plot
 from narrative_arc.projections import METHODS, project
 
 ARC_TUBE = "arc_tube"
@@ -76,8 +74,6 @@ def run(book, model, args):
     0.35 if section == "emotions" else 1.0)
   color = args.color or ("emotion" if section == "emotions" else "progression")
 
-  paragraphs, chapters = load_book(args.data_dir, book)
-  hover = window_hover(series, paragraphs, chapters)
   embeddings = load_embeddings(args.data_dir, book, model) if section == "spread" else None
   win_tag = paths.window_tag(args.size, args.stride, args.l2)
   output_dir = paths.out_dir(args.output_dir, book, model, ARC_TUBE)
@@ -130,9 +126,6 @@ def run(book, model, args):
              f"{book} / {model} -- window {args.size}, stride {args.stride}")
     tube_plot(tube, proj, fit.curve, title, stem + ".png", color,
               not args.no_rings, args.elev, args.azim)
-    if not args.no_html:
-      tube_html(tube, proj, fit.curve, hover, title, stem + ".html", color,
-                not args.no_rings)
 
   paths.stamp(output_dir, __file__, args, book=book, model=model, n_windows=n)
   print(f"  -> {output_dir}")
@@ -185,7 +178,6 @@ def main():
   parser.add_argument("--perplexity", default=30.0, type=float)
   parser.add_argument("--no-rings", action="store_true",
                       help="Hide the polygon outline at each window.")
-  parser.add_argument("--no-html", action="store_true")
   parser.add_argument("--elev", default=22.0, type=float)
   parser.add_argument("--azim", default=-60.0, type=float)
   args = parser.parse_args()

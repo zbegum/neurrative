@@ -43,7 +43,7 @@ from smooth_common import Standardizer, load_pca, fit_grid
 from geometry.smoothers import gaussian_nw, epanechnikov_nw, local_linear, loess
 from arc_on_surface import window_bounds
 from arc_emotion_axis import (normalizer, mood, smooth1d, nan_blur,
-                              sample_surface, EMOTION_COLOR, DEFAULT_ORDER)
+                              sample_surface, DEFAULT_ORDER)
 
 # One row per smoother; three columns = that method's bandwidth ladder. The
 # ladders match the bandwidth_grid README (Epanechnikov's cutoff needs ~4x the
@@ -84,8 +84,7 @@ def surface_at(predict, params, xs, ys, X_raw, y_raw, Q):
 
 def variant_params(args):
   """The knobs that change this grid. METHODS fixes the swept smoothers and
-  bandwidths in code, so only the per-run arc and blend settings vary; the
-  interactive twin shares this so its HTML lands beside the PNG."""
+  bandwidths in code, so only the per-run arc and blend settings vary."""
   return {"w": args.size, "s": args.stride, "t": args.temp, "norm": args.norm}
 
 
@@ -145,8 +144,6 @@ def main():
       mood_grid = np.where(all_supported, mood(grid_n, positions, args.temp), np.nan)
       mood_grid = nan_blur(mood_grid, args.surface_smooth)
       mood_arc = mood(arc_n, positions, args.temp)
-      dom = np.array(order)[np.nanargmax(np.where(np.isfinite(arc_n), arc_n, -np.inf), axis=0)]
-      dom_colors = [EMOTION_COLOR.get(e, "#555") for e in dom]
 
       ax = fig.add_subplot(nr, nc, r * nc + c + 1, projection="3d")
       ax.plot_surface(GX, GY, mood_grid, cmap="magma", vmin=0, vmax=1,
@@ -160,10 +157,6 @@ def main():
       lc = Line3DCollection(seg, cmap="plasma", linewidth=2.4, zorder=5)
       lc.set_array(np.linspace(0, 1, len(pts) - 1))
       ax.add_collection3d(lc)
-      sl = slice(None, None, 5)
-      ax.scatter(pts[sl, 0], pts[sl, 1], pts[sl, 2],
-                 c=[dom_colors[i] for i in range(0, len(pts), 5)],
-                 s=11, depthshade=False, zorder=6)
       ax.scatter(*pts[0], color="black", s=40, marker="o", depthshade=False, zorder=7)
       ax.scatter(*pts[-1], color="black", s=50, marker="X", depthshade=False, zorder=7)
       ax.set_zlim(0, 1)
@@ -180,7 +173,7 @@ def main():
   fig.suptitle(f"Emotion-axis mood surface by smoother and bandwidth -- "
                f"{args.book} / {args.model}\n"
                "rows: smoother | columns: bandwidth | height = mood, "
-               "color = dominant emotion", fontsize=13)
+               "color = reading order", fontsize=13)
   fig.tight_layout(rect=(0, 0, 1, 0.96))
   p = os.path.join(out_dir, "emotion_axis_smoother_grid.png")
   fig.savefig(p, dpi=150); plt.close(fig)

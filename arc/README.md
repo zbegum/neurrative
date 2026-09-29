@@ -8,14 +8,14 @@ average the embeddings in each window, project the windows to 2-D or 3-D with
 the story's trajectory: where it opens (**O**), where it ends (**X**), and the
 loops and drifts in between (arrows show direction).
 
-![2-D narrative arc of Alice in Wonderland, PCA / UMAP / t-SNE](docs/arc_2d_grid.png)
+![2-D narrative arc of Alice in Wonderland, PCA / UMAP / t-SNE](../docs/figures/13_arc_2d_bspline_alice.png)
 
 ## Folders
 
 | folder | what | scripts |
 |---|---|---|
-| `curve/` | the arc as a curve: 2-D and 3-D paths under PCA / UMAP / t-SNE, the fitted B-spline, and its interactive explorer | `arc_2d.py`, `arc_3d.py`, `explorer.py` |
-| `tube/` | the narrative tube: a cross-section per window swept along the fitted curve, and its interactive explorer | `arc_tube.py`, `tube_explorer.py` |
+| `curve/` | the arc as a curve: 2-D and 3-D paths under PCA / UMAP / t-SNE, the fitted B-spline, and the 3-D viewer | `arc_2d.py`, `arc_3d.py`, `arc_viewer.py` |
+| `tube/` | the narrative tube: a cross-section per window swept along the fitted curve | `arc_tube.py` |
 | `sweeps/` | how the picture changes with window, fit, projection settings and embedding model; the 3-D arc with its flat views | `sweep.py`, `grid_3d.py` |
 | `validation/` | is the arc real? against the raw per-paragraph path and a shuffled reading order | `arc_comparison.py`, `arc_comparison_projections.py` |
 | `narrative_arc/` | the library every script above uses (windows, projections, curve fitting, tube, plotting) | — |
@@ -32,7 +32,7 @@ Results go to `arc/output/<book>/<model>/`.
 2. **Projection.** The pooled series is projected three ways, because no single
    projection is trustworthy on its own — *agreement across them is the signal*.
 3. **Drawing.** Windows are joined in reading order, colored by progression,
-   chapter, dominant emotion or any single emotion score.
+   chapter or any single emotion score.
 4. **Curve fitting** (`--fit`). A uniform B-spline is fitted through the windows
    with [bspline-regression](https://github.com/rstebbing/bspline-regression),
    which works in any dimension, so the 2-D and 3-D arcs use the same fitter. It
@@ -55,7 +55,7 @@ The 3-D arc keeps a third component instead of discarding it. Two windows that
 overlap in the plane only because the flattening removed what separated them come
 apart again, so an apparent crossing can turn out to pass above itself.
 
-<img src="docs/arc_3d_pca.png" alt="3-D PCA narrative arc with fitted B-spline and control polygon" width="560">
+<img src="../docs/figures/16_arc_3d_bspline_alice.png" alt="3-D PCA narrative arc with fitted B-spline and control polygon" width="560">
 
 How much of the shape to trust depends on the projection:
 
@@ -103,12 +103,12 @@ are available for it.
 # 2-D: PCA, UMAP, t-SNE, colored by reading order and chapter
 python curve/arc_2d.py
 
-# 3-D: static PNGs + rotatable HTML
+# 3-D
 python curve/arc_3d.py
 
 # more coloring, and a fitted B-spline with its control polygon
-python curve/arc_2d.py --color progression chapter dominant --fit
-python curve/arc_3d.py --color progression dominant emotions --fit --show-control
+python curve/arc_2d.py --color progression chapter wonder --fit
+python curve/arc_3d.py --color progression emotions --fit --show-control
 
 # a looser or tighter curve
 python curve/arc_3d.py --fit --n-control 8 --lambda 1.0
@@ -124,9 +124,6 @@ python curve/arc_2d.py --data-dir /path/to/books --all-books --all-models
 python ../common/windows.py --all-books --all-models
 ```
 
-Hover a window in the HTML to see its paragraph range, chapter and the opening of
-its middle paragraph, so any point on the arc can be read back as text.
-
 ### Narrative tube
 
 ```bash
@@ -139,7 +136,7 @@ python tube/arc_tube.py --methods pca umap tsne
 The arc thickened into a tube: every window gets a polygon cross-section, and
 the polygons are joined smoothly along the fitted 3-D curve, so the shape changes
 over reading time. Written to `output/<book>/<model>/arc_tube/<projection>/`
-(PNG, rotatable HTML, and the mesh as `.npz`).
+(PNG, and the mesh as `.npz`).
 
 - **`--section emotions`**: one vertex per emotion. A vertex sits further
   from the curve the stronger that emotion is in the window, and the surface is
@@ -161,14 +158,6 @@ Construction (`narrative_arc/tube.py`):
    that 95% of the curve is fold-free, and only the sharpest bends are narrowed
    locally. Thickness therefore stays comparable along the story. Each run
    prints both the factor and the narrowed fraction.
-
-**Interactive:** `python tube/tube_explorer.py` writes `output/tube_explorer.html`.
-- Dropdowns: book, model, projection, window, step, cross-section, surface color.
-- Live controls: thickness, smoothing, rounded sections.
-- A reading-position slider highlights one window's section and shows its text.
-
-The projections, centerlines, frames and curvature are precomputed. The tube
-itself is rebuilt in the page, so the sliders respond instantly.
 
 ### 3-D grid with flat views
 
@@ -208,8 +197,7 @@ paragraphs, so they are neighbours no matter what the text says.
 | `--size`, `--stride` | `40`, `20` | window length and step, in paragraphs |
 | `--l2` | off | L2-normalize embeddings before pooling |
 | `--methods` | `pca umap tsne` | which projections |
-| `--color` | `progression chapter` | also `dominant`, `emotions`, or an emotion name |
-| `--min-score` | `0.2` | `dominant`: below this a window is "unclear" |
+| `--color` | `progression chapter` | also `emotions`, or an emotion name |
 | `--neighbors`, `--min-dist` | `15`, `0.1` | UMAP |
 | `--perplexity` | `30` | t-SNE, clamped below the window count |
 | `--seed` | `0` | UMAP and t-SNE |
@@ -221,7 +209,7 @@ paragraphs, so they are neighbours no matter what the text says.
 | `--max-iter` | `100` | solver iteration cap |
 | `--show-control` | off | draw the fitted control polygon |
 | `--elev`, `--azim` | `22`, `-60` | 3-D static camera |
-| `--no-html`, `--no-grid` | | skip the HTML / side-by-side figures |
+| `--no-grid` | | skip the side-by-side figure |
 
 ## Validation: is the arc real?
 
@@ -252,22 +240,22 @@ arc_2d/<pca|umap|tsne>/<proj>_w40_s20[...].npy     projected coordinates
 arc_2d/<pca|umap|tsne>/fit_<proj>_w40_s20[...]_fit-d3-c12-l0.1.npz
                                            fitted curve, control_points, u, converged, energy
 arc_2d/grid_<color>_w40_s20_pca-umap-tsne[...].png
-arc_3d/<pca|umap|tsne>/arc3d_<proj>_<color>_w40_s20[...].png|.html
+arc_3d/<pca|umap|tsne>/arc3d_<proj>_<color>_w40_s20[...].png
 arc_3d/<pca|umap|tsne>/<proj>3d_w40_s20[...].npy
 arc_3d/<pca|umap|tsne>/fit3d_<proj>_w40_s20[...].npz
-arc_3d/grid3d_<color>_w40_s20_pca-umap-tsne[...].png|.html
+arc_3d/grid3d_<color>_w40_s20_pca-umap-tsne[...].png
 params.json                                arguments, commit and settings of the run
 ```
 
 ## Layout
 
 ```
-curve/           arc_2d.py, arc_3d.py, explorer.py
-tube/            arc_tube.py, tube_explorer.py
+curve/           arc_2d.py, arc_3d.py, arc_viewer.py
+tube/            arc_tube.py
 sweeps/          sweep.py, grid_3d.py
 validation/      arc_comparison.py, arc_comparison_projections.py
 narrative_arc/
-  data.py          loading books, embeddings, emotion scores; emotion palette
+  data.py          loading books, embeddings, emotion scores
   windows.py       window bounds, pooling, the saved series (the one
                    definition; common/windows.py imports it)
   tube.py          the narrative tube: frames, sweep, mesh
@@ -275,9 +263,8 @@ narrative_arc/
   colors.py        what the windows are colored by
   curves.py        B-spline fit through the windows (sets up bspline-regression)
   plot_2d.py       matplotlib 2-D arc
-  plot_3d.py       matplotlib 3-D arc + plotly interactive
-  plot_tube.py     the tube's static and interactive renders
-  explorer_data.py what both explorers share: window presets, per-book record
+  plot_3d.py       matplotlib 3-D arc
+  plot_tube.py     the tube's render
   cli.py, paths.py shared arguments, output paths
 vendor/bspline_regression/   the curve-fitting library (vendored)
 ```

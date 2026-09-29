@@ -26,7 +26,7 @@ Examples:
 
 python curve/arc_2d.py
 python curve/arc_2d.py --book alice_wonderland --model bge-m3 \
-  --size 15 --stride 3 --color progression chapter dominant
+  --size 15 --stride 3 --color progression chapter wonder
 python curve/arc_2d.py --fit --n-control 10 --lambda 0.1 --show-control
 """
 
@@ -59,7 +59,7 @@ def run(book, model, args):
   saved = W.save(series, args.output_dir, __file__, args)
   print(f"  series -> {saved}")
 
-  specs = resolve_colors(args.color, series, args.min_score)
+  specs = resolve_colors(args.color, series)
   print(f"  coloring by: {', '.join(s.name for s in specs)}")
 
   projections = project(series.pooled, args.methods, n_components=2,

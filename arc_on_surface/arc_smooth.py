@@ -246,54 +246,6 @@ def main():
   p = os.path.join(out_dir, f"arc_smooth_{tag}_3d.png")
   fig.savefig(p, dpi=170); plt.close(fig); print(f"  wrote {p}")
 
-  # --- interactive: rotatable terrain with a tau slider ------------------------
-  # Drag tau from 0 (straight geodesic) upward and watch the curve progressively
-  # hug the arc; rotate to see it ride the landscape.
-  try:
-    import plotly.graph_objects as go
-
-    lifted = {t: lift(results[t]["curve"]) for t in args.taus}
-    prog = np.linspace(0, 1, len(arc3d))
-    traces = [
-      go.Surface(x=GX, y=GY, z=args.alpha * Zsurf, colorscale="Greys",
-                 cmin=-args.alpha, cmax=2 * args.alpha, opacity=0.45,
-                 showscale=False, hoverinfo="skip", name=zlabel),
-      # the timeseries points we smooth over: small dots, no edges, coloured by
-      # reading progression (dark = start, bright = end).
-      go.Scatter3d(x=arc3d[:, 0], y=arc3d[:, 1], z=arc3d[:, 2] + 0.02,
-                   mode="markers",
-                   marker=dict(size=2.5, color=prog, colorscale="Plasma"),
-                   name="sample points", hovertemplate="window<extra></extra>"),
-    ]
-    # one smoothed-curve trace per tau; only the lift_tau one visible at first
-    for t in args.taus:
-      c3 = lifted[t]
-      cp = np.linspace(0, 1, len(c3))
-      traces.append(go.Scatter3d(
-        x=c3[:, 0], y=c3[:, 1], z=c3[:, 2] + 0.03 * args.alpha, mode="lines",
-        line=dict(color=cp, colorscale="Plasma", width=4),
-        name=f"smoothed (tau={t:g})",
-        visible=(t == lift_tau), hovertemplate=f"tau={t:g}<extra></extra>"))
-    steps = []
-    for i, t in enumerate(args.taus):
-      vis = [True, True] + [j == i for j in range(len(args.taus))]
-      steps.append(dict(method="update", label=f"{t:g}",
-                        args=[{"visible": vis}]))
-    figi = go.Figure(traces)
-    figi.update_layout(
-      title=f"Distance-based smoothing of the narrative arc -- {label} terrain "
-            f"(drag tau; rotate to see the arc ride the landscape)",
-      sliders=[dict(active=args.taus.index(lift_tau), currentvalue={"prefix": "tau = "},
-                    pad={"t": 40}, steps=steps)],
-      scene=dict(xaxis_title="PC1", yaxis_title="PC2", zaxis_title=zlabel,
-                 xaxis=dict(showticklabels=False), yaxis=dict(showticklabels=False),
-                 camera=dict(eye=dict(x=1.5, y=-1.6, z=0.9))),
-      height=800, margin=dict(l=0, r=0, t=50, b=0))
-    p = os.path.join(out_dir, f"arc_smooth_{tag}.html")
-    figi.write_html(p, include_plotlyjs="cdn"); print(f"  wrote {p}")
-  except ImportError:
-    print("  (plotly not available; skipped interactive HTML)")
-
   print(f"  -> {out_dir}")
 
 

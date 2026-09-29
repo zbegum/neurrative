@@ -12,8 +12,6 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 import numpy as np
 
-from .data import UNCLEAR
-
 
 def draw_smooth_curve(ax, fit, show_control=False):
   """Overlay the fitted curve, colored by progression so its direction reads."""
@@ -57,48 +55,25 @@ def draw_path(ax, coords, faint=False):
 
 
 def draw_points(ax, coords, spec, size=45):
-  """Returns (mappable, None) for a continuous spec, (None, handles) otherwise."""
-  if spec.categories is None:
-    sc = ax.scatter(coords[:, 0], coords[:, 1], c=spec.values, cmap=spec.cmap,
+  """The windows, colored by `spec`; returns the mappable for the colorbar."""
+  return ax.scatter(coords[:, 0], coords[:, 1], c=spec.values, cmap=spec.cmap,
                     vmin=spec.vmin, vmax=spec.vmax, s=size, alpha=0.9,
                     linewidths=0.3, edgecolors="white", zorder=3)
-    return sc, None
-
-  handles = []
-  for code, (label, hue, marker, _symbol) in enumerate(spec.categories):
-    mask = spec.values == code
-    if not mask.any():
-      continue
-    recessive = label == UNCLEAR
-    handle = ax.scatter(
-      coords[mask, 0], coords[mask, 1], c=hue, marker=marker,
-      s=size * (0.7 if recessive else 1.0), alpha=0.4 if recessive else 0.9,
-      linewidths=0 if recessive else 0.3,
-      edgecolors="none" if recessive else "#33322e",
-      zorder=3, label=f"{label} ({int(mask.sum())})",
-    )
-    handles.append(handle)
-  return None, handles
 
 
 def draw_arc(fig, ax, proj, spec, title, fit=None, show_control=False, key=True):
   """One complete arc panel on `ax`: path, optional fit, points, and -- unless
-  `key` is False, for dense grids -- the colorbar or legend."""
+  `key` is False, for dense grids -- the colorbar."""
   coords = proj.coords
   draw_path(ax, coords, faint=fit is not None)
   if fit is not None:
     draw_smooth_curve(ax, fit, show_control)
-  sc, handles = draw_points(ax, coords, spec)
+  sc = draw_points(ax, coords, spec)
 
   ax.set_xlabel(proj.labels[0])
   ax.set_ylabel(proj.labels[1])
   ax.set_title(title)
-  if not key:
-    return
-  if handles:
-    ax.legend(handles=handles, title=spec.label, loc="best", frameon=True,
-              framealpha=0.9, fontsize=9, markerscale=1.4)
-  else:
+  if key:
     fig.colorbar(sc, ax=ax, label=spec.label)
 
 

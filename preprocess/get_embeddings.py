@@ -10,8 +10,6 @@ books/
       bge-m3/
       qwen3-embedding/
       e5-large-v2/
-      gte-qwen2/  (need an older version of transformers)
-      nv-embed-v2/  (need an older version of transformers)
 
 Examples:
 
@@ -40,7 +38,7 @@ def main():
     "--model",
     type=str,
     required=True,
-    choices=["bge-m3", "qwen3-embedding", "e5-large-v2", "nv-embed-v2", "gte-qwen2"],
+    choices=["bge-m3", "qwen3-embedding", "e5-large-v2"],
     help="Embedding model.",
   )
   parser.add_argument(

@@ -16,22 +16,21 @@ How to read the three:
   UMAP   neighbourhoods are signal; distances, angles and overall shape are not.
   t-SNE  same as UMAP, more so.
 
-Each projection x coloring writes a static PNG and a rotatable HTML (hover a
-window to see its paragraph range, chapter, and the opening of its middle
-paragraph). A side-by-side grid of all projections is written too.
+Each projection x coloring writes a static PNG. A side-by-side grid of all
+projections is written too.
 
 Outputs, under <output-dir>/<book>/<model>/:
 
   windows/w40_s20/series.npz                  the pooled series itself
-  arc_3d/<pca|umap|tsne>/arc3d_*.png|.html    one per projection x coloring
+  arc_3d/<pca|umap|tsne>/arc3d_*.png         one per projection x coloring
   arc_3d/<pca|umap|tsne>/<proj>3d_*.npy       the projected coordinates
   arc_3d/<pca|umap|tsne>/fit3d_*.npz          the fitted B-spline, with --fit
-  arc_3d/grid3d_*.png|.html                   all projections side by side
+  arc_3d/grid3d_*.png                         all projections side by side
 
 Examples:
 
 python curve/arc_3d.py
-python curve/arc_3d.py --methods pca --color progression dominant --fit --show-control
+python curve/arc_3d.py --methods pca --color progression emotions --fit --show-control
 python curve/arc_3d.py --size 15 --stride 3 --elev 30 --azim 45
 """
 
@@ -48,9 +47,7 @@ from narrative_arc import cli, paths
 from narrative_arc import windows as W
 from narrative_arc.colors import resolve_colors
 from narrative_arc.curves import fit_tag
-from narrative_arc.data import load_book
-from narrative_arc.plot_3d import (arc_grid_3d, arc_plot_3d, interactive_grid_3d,
-                                   interactive_plot_3d, window_hover)
+from narrative_arc.plot_3d import arc_grid_3d, arc_plot_3d
 from narrative_arc.projections import project
 
 
@@ -63,17 +60,12 @@ def run(book, model, args):
   saved = W.save(series, args.output_dir, __file__, args)
   print(f"  series -> {saved}")
 
-  specs = resolve_colors(args.color, series, args.min_score)
+  specs = resolve_colors(args.color, series)
   print(f"  coloring by: {', '.join(s.name for s in specs)}")
 
   projections = project(series.pooled, args.methods, n_components=3,
                         neighbors=args.neighbors, min_dist=args.min_dist,
                         perplexity=args.perplexity, seed=args.seed)
-
-  hover = None
-  if not args.no_html:
-    paragraphs, chapters = load_book(args.data_dir, book)
-    hover = window_hover(series, paragraphs, chapters)
 
   output_dir = paths.out_dir(args.output_dir, book, model, paths.ARC_3D)
   fit = cli.fit_opts(args)
@@ -98,9 +90,6 @@ def run(book, model, args):
         method_dir, f"arc3d_{proj.tag}_{spec.name}_{win_tag}{proj.suffix}{ftag}")
       arc_plot_3d(proj, spec, title, stem + ".png", fit=proj_fit,
                   show_control=args.show_control, **view)
-      if hover is not None:
-        interactive_plot_3d(proj, spec, hover, title, stem + ".html",
-                            fit=proj_fit, show_control=args.show_control)
 
   if len(projections) > 1 and not args.no_grid:
     for spec in specs:
@@ -109,9 +98,6 @@ def run(book, model, args):
                                       f"{cli.grid_suffix(projections)}{ftag}")
       arc_grid_3d(projections, spec, title, stem + ".png", fits=fits,
                   show_control=args.show_control, **view)
-      if hover is not None:
-        interactive_grid_3d(projections, spec, hover, title, stem + ".html",
-                            fits=fits, show_control=args.show_control)
 
   paths.stamp(output_dir, __file__, args, book=book, model=model,
               n_windows=len(series), colorings=[s.name for s in specs],
@@ -128,8 +114,6 @@ def main():
                       help="Static PNG camera elevation, in degrees.")
   parser.add_argument("--azim", default=-60.0, type=float,
                       help="Static PNG camera azimuth, in degrees.")
-  parser.add_argument("--no-html", action="store_true",
-                      help="Skip the interactive plotly HTML.")
   args = parser.parse_args()
 
   for book, model in cli.targets(args, parser):

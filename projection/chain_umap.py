@@ -249,10 +249,10 @@ def layout_grid(rows, metrics, spec, book, model, path):
   fig, axes = plt.subplots(nrows, ncols, figsize=(5 * ncols, 5.4 * nrows),
                            squeeze=False)
 
-  sc = handles = None
+  sc = None
   for ax, (beta, label, coords) in zip(axes.ravel(), rows):
     m = metrics[beta]
-    sc, handles = panel(
+    sc = panel(
       ax, coords, spec,
       f"{label}\ntrust {m['trustworthiness']:.3f}  "
       f"order {m['order_adjacency']:.3f}",
@@ -262,7 +262,7 @@ def layout_grid(rows, metrics, spec, book, model, path):
     ax.set_axis_off()
 
   save_grid(
-    fig, sc, handles,
+    fig, sc,
     f"{book} / {model} -- UMAP with reading-order edges "
     f"(n_neighbors={N_NEIGHBORS}, chain width {CHAIN_WIDTH})",
     spec.label, path,
@@ -348,7 +348,7 @@ def run(book, model, args):
     print(f"  no character labels, skipping character agreement -- {e}")
     names, cast = [], None
 
-  specs = resolve_colors(args.color, book, paragraphs, args.min_score)
+  specs = resolve_colors(args.color, book, paragraphs)
   out_dir = paths.out_dir(book, model, paths.CHAIN_UMAP, variant_params={
     "n": args.neighbors, "w": args.chain_width, "d": args.min_dist,
     "k": args.trust_k, "s": args.seed,

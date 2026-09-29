@@ -1,8 +1,6 @@
 # generated figures and intermediate results, one output/ per step folder
 # (rebuild with the scripts)
 output/
-site/reference.js
-site/data.js
 old/
 slurm/
 *.out

@@ -1,12 +1,9 @@
 """
-Loading helpers and the shared emotion conventions.
+Loading helpers.
 
 Row i of every array returned here is paragraph i in processed.json, which is
 also row i of embeddings.npy -- so coordinates, chapters and scores always refer
 to the same paragraph.
-
-The dominant-emotion palette lives here too, so that a color means the same
-emotion in every plot either script draws.
 """
 
 import os
@@ -15,56 +12,6 @@ import json
 import numpy as np
 
 import paths
-
-# Fixed hue + marker per emotion for discrete "dominant emotion" plots. The hues
-# are a 6-subset of the reference categorical palette, chosen because it is the
-# only 6-subset clearing the all-pairs normal-vision floor (worst pair ΔE 15.6).
-# Its worst colorblind pair is ΔE 6.9, which is only legal alongside a second,
-# non-color channel -- hence the distinct marker per emotion. The mapping is by
-# emotion name, never by how common the emotion is, so a color means the same
-# thing in every book and every plot.
-#                  hue        matplotlib  plotly
-EMOTION_STYLE = {
-  "sadness":   ("#2a78d6", "v", "diamond-open"),   # blue
-  "curiosity": ("#008300", "o", "circle"),         # green
-  "humor":     ("#eda100", "^", "square-open"),    # yellow
-  "confusion": ("#1baf7a", "s", "square"),         # aqua
-  "wonder":    ("#4a3aa7", "D", "diamond"),        # violet
-  "danger":    ("#e34948", "X", "x"),              # red
-}
-
-# Anything whose top score is too low to mean much, or is an exact tie, gets a
-# recessive gray rather than a confident color on a coin flip.
-UNCLEAR = "unclear"
-UNCLEAR_STYLE = ("#b0afa8", ".", "circle-open")
-
-
-def dominant(emotions, matrix, min_score):
-  """Which emotion wins each paragraph. Returns (codes, categories, n_unclear).
-
-  codes index into categories, a list of (label, hue, marker, symbol) whose last
-  entry is always `unclear`.
-
-  argmax alone would be misleading twice over. Where every score is near zero
-  nothing is really dominant, and on an exact tie argmax silently returns the
-  lowest index -- which, since the emotions are sorted, would hand every tie to
-  whichever sorts first. Both cases go to `unclear` instead.
-  """
-  missing = [e for e in emotions if e not in EMOTION_STYLE]
-  if missing:
-    raise ValueError(
-      f"No color assigned for {missing}. EMOTION_STYLE covers "
-      f"{sorted(EMOTION_STYLE)}; the palette is validated for 6 categories."
-    )
-
-  ordered = np.sort(matrix, axis=1)
-  margin = ordered[:, -1] - ordered[:, -2]
-  unclear = (matrix.max(axis=1) < min_score) | (margin == 0)
-  codes = np.where(unclear, len(emotions), matrix.argmax(axis=1))
-
-  categories = [(e, *EMOTION_STYLE[e]) for e in emotions]
-  categories.append((UNCLEAR, *UNCLEAR_STYLE))
-  return codes, categories, int(unclear.sum())
 
 
 def load_paragraphs(book):

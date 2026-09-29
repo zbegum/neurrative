@@ -10,5 +10,5 @@ reading order. The line is the story's path through semantic space.
   colors       what the points are colored by
   curves       uniform B-spline fit through the windows (bspline-regression)
   plot_2d      the flat arc (matplotlib)
-  plot_3d      the arc in 3-D (matplotlib PNG + plotly HTML)
+  plot_3d      the arc in 3-D (matplotlib PNG)
 """

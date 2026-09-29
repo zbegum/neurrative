@@ -3,7 +3,6 @@
     python surface/mood/run.py --figure surface       # the mood surface
     python surface/mood/run.py --figure plane         # the 2D layout (scatter)
     python surface/mood/run.py --figure arc           # arc over the surface
-    python surface/mood/run.py --figure interactive   # rotatable, hoverable HTML
 
 Figures land in surface/mood/output/<book>/<model>/.
 """
@@ -31,7 +30,7 @@ import surface
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--figure", default="surface",
-                    choices=["surface", "plane", "arc", "interactive"])
+                    choices=["surface", "plane", "arc"])
     ap.add_argument("--book", default="alice_wonderland")
     ap.add_argument("--model", default="bge-m3")
     ap.add_argument("--plane", default="chain_umap", choices=["pca", "chain_umap"])
@@ -55,7 +54,7 @@ def main():
 
     paragraphs, emotions, scores, chapters, summaries = data.load_book(args.book)
     coords = data.load_coords(args.book, args.model, args.plane, args.beta)
-    m, order, positions, winner = mood_mod.mood(
+    m, order, positions, _ = mood_mod.mood(
         scores, emotions, blend=args.blend, norm=args.norm, temp=args.temp)
     tag = f"{args.plane}_{args.blend}_h{args.h:g}"
     out = paths.out_dir(args.book, args.model, paths.MOOD)
@@ -69,19 +68,6 @@ def main():
         return
 
     GX, GY, Z, height_at = surface.fit(coords, m, args.h, mask_floor=args.mask_floor)
-
-    if args.figure == "interactive":
-        import interactive
-        fig = interactive.page(
-            GX, GY, Z, coords, m, winner, order, positions, chapters, summaries,
-            emotions, scores,
-            f"The mood surface -- {args.book} / {args.model}<br><sub>{tag} "
-            f"&middot; z = mood, sadness (low) to humor (high) &middot; click a "
-            f"legend entry to colour by dominant emotion</sub>", args.plane)
-        path = os.path.join(out, f"mood_surface_{tag}.html")
-        fig.write_html(path, include_plotlyjs="cdn")
-        print(f"wrote {path}")
-        return
 
     fig = plt.figure(figsize=(10, 8.5))
     ax = fig.add_subplot(111, projection="3d")

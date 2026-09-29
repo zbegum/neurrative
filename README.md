@@ -45,8 +45,8 @@ surface/            step 2  the emotion landscape, one folder per fitting method
   poisson/            screened Poisson reconstruction (a watertight solid)
   mood/               six emotions -> one mood height, and the arc on it
 arc/                step 3  the narrative arc
-  curve/              2-D / 3-D paths, the B-spline fit, the explorer
-  tube/               the narrative tube and its explorer
+  curve/              2-D / 3-D paths, the B-spline fit
+  tube/               the narrative tube
   sweeps/             window / fit / projection / model sweeps
   validation/         is the arc real?
   narrative_arc/      the library the arc scripts share
@@ -54,7 +54,6 @@ arc_on_surface/     step 4  the arc lifted onto the landscape, and geodesics
 
 docs/figures/       curated figures with captions
 docs/interactive/   one interactive page, three tabs: story map, mood surface, arc in 3-D
-site/               a pipeline reference page generated from the code
 ```
 
 ## Setup
@@ -189,18 +188,6 @@ and only the default is Qwen2.5-7B-Instruct.
 change the result become a **variant subdirectory**, so two settings never
 overwrite each other, and every run writes a **`params.json`** with its full
 arguments and the estimator used.
-
-## Pipeline reference site
-
-```
-python site/export_reference.py  # flow, parameters and algorithms, from the source AST
-python site/build.py             # figures and metrics, from every output/ folder
-open site/index.html
-```
-
-Six tabs: Pipeline, Algorithms (what is vendored, third-party or written here),
-Parameters (every CLI flag, searchable), Tuning, Figures and Conflicts. Nothing
-on the page is typed by hand, so rebuild after any run.
 
 ## Third-party code
 

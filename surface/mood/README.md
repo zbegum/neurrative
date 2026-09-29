@@ -18,7 +18,6 @@ instead of cutting through them.
     python surface/mood/run.py --figure surface       # the mood surface
     python surface/mood/run.py --figure plane         # the 2-D layout, by reading order and by mood
     python surface/mood/run.py --figure arc           # the arc over the surface (geodesics)
-    python surface/mood/run.py --figure interactive   # rotatable HTML, every paragraph hoverable
     python surface/mood/mood_viewer.py                # the surface with the emotions as its axis,
                                                       # the arc lying on it, the text beside it
 
@@ -27,7 +26,7 @@ instead of cutting through them.
 
 Comparison grids:
 
-    python surface/mood/grids.py --grid blends      # the five ways six emotions become one height
+    python surface/mood/grids.py --grid blends      # the four ways six emotions become one height
     python surface/mood/grids.py --grid sweep       # softmax temperature x bandwidth
     python surface/mood/grids.py --grid sampling    # which paragraphs the arc runs through
     python surface/mood/grids.py --grid chapters    # coarse vs fine narrative units
@@ -44,12 +43,11 @@ Output: `surface/mood/output/<book>/<model>/`.
 
 | file | what |
 |---|---|
-| `mood.py` | **the single definition of mood in the repository**: the spectrum, the per-emotion normalizer and the five blends. `arc_on_surface/` imports it too. |
+| `mood.py` | **the single definition of mood in the repository**: the spectrum, the per-emotion normalizer and the four blends. `arc_on_surface/` imports it too. |
 | `surface.py` | fit the Gaussian surface and evaluate its height anywhere |
 | `sampling.py` | pick which paragraphs the arc runs through |
 | `geodesic.py` | join waypoints with exact geodesics along the surface |
 | `plot.py` | draw the plane, the surface and the arc |
-| `interactive.py` | the hoverable HTML page |
 | `mood_viewer.py` | the reading view: emotion-axis surface, the arc on it, text and timeline |
 | `data.py` | load paragraphs, scores, chapters and the 2-D layout |
 | `run.py` / `grids.py` | one figure at a time / the comparison grids |
@@ -59,8 +57,7 @@ Output: `surface/mood/output/<book>/<model>/`.
 - **Blend** (`--blend`), how six emotions become one height:
   `banded` (default) gives each emotion its own band, so the height names an
   emotion and still shows how clearly it wins; `softmax` is a weighted mean and
-  sits near the middle unless one emotion dominates; `dominant` is a step
-  function; `project` is a sum rather than a mean, so intensity survives; `pc1`
+  sits near the middle unless one emotion dominates; `project` is a sum rather than a mean, so intensity survives; `pc1`
   lets the data choose the axis.
 - **Normalizer** (`--norm`): each emotion is made comparable before blending.
   `rank` (default) uses percentiles, and tied scores share their average rank.
@@ -74,12 +71,12 @@ Output: `surface/mood/output/<book>/<model>/`.
 
 This folder merges three versions of the idea: this package, an earlier
 single-script version, and the mood axis in `arc_on_surface/arc_emotion_axis.py`.
-They now share `mood.py`. The earlier script's interactive page, temperature ×
+They now share `mood.py`. The earlier script's temperature ×
 bandwidth sweep, per-window arc grid and the `project` and `pc1` blends were
 carried over; a few cosmetic options were not (`--no-points`, measured z-ticks,
 drawing points at their own mood rather than on the surface).
 
 The merge also fixed the rank normalizer: the old version ranked tied scores by
 their position in the book, so two paragraphs with the same score could get
-different values, and on Alice 14% of paragraphs changed dominant emotion once
-ties were handled by average rank.
+different values, and on Alice 14% of paragraphs changed their strongest
+emotion once ties were handled by average rank.

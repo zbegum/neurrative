@@ -44,9 +44,6 @@ def add_arc_args(parser):
                       choices=METHODS, help="Which projections to draw.")
   parser.add_argument("--color", nargs="+", default=["progression", "chapter"],
                       help=COLOR_HELP)
-  parser.add_argument("--min-score", default=0.2, type=float,
-                      help="For --color dominant: below this pooled top score a "
-                           "window is 'unclear' rather than colored.")
   parser.add_argument("--no-grid", action="store_true",
                       help="Skip the side-by-side figure of all projections.")
 

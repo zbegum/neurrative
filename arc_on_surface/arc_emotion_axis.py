@@ -16,8 +16,8 @@ score-weighted position of its emotional blend:
 so a window dominated by wonder sits high, one dominated by sadness sits low, and
 a mix lands in between. The z-axis is ticked with the emotion names at their
 positions, so the emotion is read straight off the height -- and as the arc rises
-and falls, you are watching the story's mood move. The marker color carries the
-*dominant* emotion, so height (blend) and color (winner) are legible together.
+and falls, you are watching the story's mood move. The arc's color is reading
+order (plasma, start -> end).
 
 The height comes from the emotion *surface* at the arc's location (the arc-on-
 surface premise: the arc lives in the surface's own PCA plane), so this is the
@@ -54,7 +54,7 @@ from smooth_common import load_pca
 from geometry.smoothers import nadaraya_watson
 from arc_on_surface import window_bounds, build_surface, surface_at
 # One definition of mood for the whole repository: surface/mood/mood.py.
-from surface.mood.mood import EMOTION_COLOR, SPECTRUM, normalizer, softmax_position as mood
+from surface.mood.mood import SPECTRUM, normalizer, softmax_position as mood
 
 # Valence order, heavy/negative (bottom) to light/positive (top). Adjustable via
 # --order; anything not named is appended so the run never silently drops one.
@@ -127,7 +127,7 @@ def main():
   ap.add_argument("--order", nargs="+", default=None,
                   help="Emotion order, bottom (negative) to top (positive).")
   ap.add_argument("--temp", default=0.3, type=float,
-                  help="Softmax temperature: small snaps to the dominant emotion "
+                  help="Softmax temperature: small snaps to the strongest emotion "
                        "(big mood swings), large averages (flatter).")
   ap.add_argument("--norm", default="rank", choices=["rank", "zscore", "minmax"],
                   help="Per-emotion normalization before blending (rank spreads most).")
@@ -198,13 +198,6 @@ def main():
   mood_grid = nan_blur(mood_grid, args.surface_smooth)
   mood_arc = mood(arc_n, positions, args.temp)
   mood_own = mood(own_n, positions, args.temp)
-  # Dominant = the emotion most elevated (in normalized terms) here; matches the
-  # mood movement, where raw argmax would always read curiosity/wonder.
-  dominant = np.array(order)[np.nanargmax(np.where(np.isfinite(arc_n), arc_n, -np.inf), axis=0)]
-  dom_colors = [EMOTION_COLOR.get(e, "#555555") for e in dominant]
-  # Dominant for the reading chart, whose primary line is the windows' own emotion.
-  dom_own = np.array(order)[np.argmax(own_n, axis=0)]
-  dom_own_colors = [EMOTION_COLOR.get(e, "#555555") for e in dom_own]
   print(f"  norm={args.norm} temp={args.temp} spread={args.spread} smooth={args.smooth}")
 
   print(f"  arc mood range {mood_arc.min():.2f}..{mood_arc.max():.2f} "
@@ -230,10 +223,6 @@ def main():
   lc = Line3DCollection(seg, cmap="plasma", linewidth=4.0, zorder=5)
   lc.set_array(np.linspace(0, 1, len(pts) - 1))
   ax.add_collection3d(lc)
-  # Sparse markers (every 4th) carry the dominant emotion without clutter.
-  s = slice(None, None, 4)
-  ax.scatter(pts[s, 0], pts[s, 1], pts[s, 2], c=[dom_colors[i] for i in range(0, len(pts), 4)],
-             s=24, depthshade=False, zorder=6, edgecolors="white", linewidths=0.4)
   ax.scatter(*pts[0], color="black", s=90, marker="o", depthshade=False, zorder=7)
   ax.scatter(*pts[-1], color="black", s=110, marker="X", depthshade=False, zorder=7)
   ax.set_zlim(0, 1)
@@ -244,10 +233,7 @@ def main():
   ax.view_init(elev=32, azim=-52)
   ax.set_title("The story arc over one emotion axis\n"
                "height = mood (read off the labelled z-axis); "
-               "marker color = dominant emotion", fontsize=12)
-  handles = [plt.Line2D([], [], marker="o", ls="", color=EMOTION_COLOR[e], label=e)
-             for e in order if e in EMOTION_COLOR]
-  ax.legend(handles=handles, loc="upper left", fontsize=8, framealpha=0.9)
+               "color = reading order", fontsize=12)
   fig.tight_layout()
   p = os.path.join(out_dir, "emotion_axis_3d.png")
   fig.savefig(p, dpi=180); plt.close(fig); print(f"  wrote {p}")
@@ -266,8 +252,6 @@ def main():
   lc = LineCollection(seg, cmap="plasma", linewidth=2.6, zorder=2)
   lc.set_array(np.linspace(0, 1, len(centers) - 1))
   ax.add_collection(lc)
-  ax.scatter(centers, own_s, c=dom_own_colors, s=22, zorder=3,
-             edgecolors="white", linewidths=0.3)
   ax.plot(centers, surf_s, color="0.6", lw=1.0, ls="--", zorder=1,
           label="surface mood (from location)")
   ax.set_xlim(centers.min(), centers.max())
@@ -284,10 +268,10 @@ def main():
   else:
     ax.set_ylim(-0.03, 1.03)
   ax.set_xlabel("reading position (paragraph)")
-  ax.set_ylabel("mood  (dominant emotion = point color)")
+  ax.set_ylabel("mood")
   ax.set_title(f"{args.book}: the story's mood over reading order\n"
                "line height rises toward the positive pole, falls toward the "
-               "negative; color = dominant emotion", fontsize=12)
+               "negative; color = reading order", fontsize=12)
   ax.legend(loc="upper right", fontsize=8, framealpha=0.9)
   fig.tight_layout()
   p = os.path.join(out_dir, "emotion_axis_over_reading.png")

@@ -103,10 +103,6 @@ passes apart. Defaults: 12 control points, `lambda` 0.1.
 
 ![Alice: 2-D arc with B-spline, PCA / UMAP / t-SNE](13_arc_2d_bspline_alice.png)
 
-The same arc colored by each window's dominant emotion:
-
-![Alice: 2-D arc colored by emotion](14_arc_2d_emotion_alice.png)
-
 **How tight should the curve be?** Columns are the number of control points,
 rows are `lambda`, the penalty on the distance between neighbouring control
 points. Each panel gives the residual, the share of consecutive windows that
@@ -183,14 +179,14 @@ not data.
 
 **The mood surface** (`surface/mood/`): the six emotions collapsed to one value
 per paragraph on a sadness → humor spectrum, then one surface, drawn here over
-the chain-UMAP layout. The blends figure shows the five ways of collapsing six
+the chain-UMAP layout. The blends figure shows the four ways of collapsing six
 emotions to one height. For `project` and `pc1` the height is a direction
 (heavy → light) rather than a position on the spectrum, so read their emotion
 ticks only as low and high.
 `python surface/mood/run.py --book <book> --model bge-m3 --figure surface`
 
 ![Alice: mood surface](25_mood_surface_alice.png)
-![Alice: five blends](26_mood_blends_alice.png)
+![Alice: four blends](26_mood_blends_alice.png)
 
 ## 6. The arc on the landscape
 
@@ -210,7 +206,7 @@ under it to be measured.
 
 **On one mood axis** (`arc_emotion_axis.py`): the same arc over a single surface
 whose height is the mood, so following the route is watching the mood change.
-Colour is the dominant emotion of each window.
+Colour is reading order.
 
 ![Alice: the arc on the mood axis](29_arc_on_mood_axis_alice.png)
 ![Pride and Prejudice: the arc on the mood axis](34_arc_on_mood_axis_pride.png)

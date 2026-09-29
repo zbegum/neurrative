@@ -43,7 +43,7 @@ from data import load_paragraphs, load_scores
 from smooth_common import load_pca
 from arc_on_surface import window_bounds, build_surface, surface_at
 from arc_emotion_axis import (normalizer, mood, smooth1d, nan_blur,
-                              sample_surface, EMOTION_COLOR, DEFAULT_ORDER)
+                              sample_surface, DEFAULT_ORDER)
 
 
 def main():
@@ -108,8 +108,6 @@ def main():
                        for e, Z in zip(order, grid_Z)])
     arc_n = np.stack([tf[e](hh) for e, hh in zip(order, arc_h)])
     all_supported = np.all(np.isfinite(grid_n), axis=0)
-    dom = np.array(order)[np.nanargmax(np.where(np.isfinite(arc_n), arc_n, -np.inf), axis=0)]
-    dom_colors = [EMOTION_COLOR.get(e, "#555") for e in dom]
     print(f"  bandwidth {h}: surfaces fitted")
 
     for c, temp in enumerate(args.temps):
@@ -129,10 +127,6 @@ def main():
       lc = Line3DCollection(seg, cmap="plasma", linewidth=2.6, zorder=5)
       lc.set_array(np.linspace(0, 1, len(pts) - 1))
       ax.add_collection3d(lc)
-      sl = slice(None, None, 5)
-      ax.scatter(pts[sl, 0], pts[sl, 1], pts[sl, 2],
-                 c=[dom_colors[i] for i in range(0, len(pts), 5)],
-                 s=12, depthshade=False, zorder=6)
       ax.scatter(*pts[0], color="black", s=45, marker="o", depthshade=False, zorder=7)
       ax.scatter(*pts[-1], color="black", s=55, marker="X", depthshade=False, zorder=7)
 
@@ -149,7 +143,7 @@ def main():
 
   fig.suptitle(f"Emotion-axis mood surface -- {args.book} / {args.model}\n"
                "rows: surface bandwidth (bumpy vs flat) | columns: temperature "
-               "(arc swing) | height = mood, color = dominant emotion", fontsize=13)
+               "(arc swing) | height = mood, color = reading order", fontsize=13)
   fig.tight_layout(rect=(0, 0, 1, 0.95))
   p = os.path.join(out_dir, "emotion_axis_surface_grid.png")
   fig.savefig(p, dpi=155); plt.close(fig)

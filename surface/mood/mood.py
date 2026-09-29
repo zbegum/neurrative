@@ -19,7 +19,7 @@ EMOTION_COLOR = {
     "sadness": "#3b6fb0", "danger": "#c0392b", "confusion": "#8e44ad",
     "curiosity": "#16a085", "wonder": "#e0a90a", "humor": "#e6673a",
 }
-BLENDS = ("banded", "softmax", "dominant", "project", "pc1")
+BLENDS = ("banded", "softmax", "project", "pc1")
 
 
 def normalizer(scores, kind="rank"):
@@ -66,7 +66,7 @@ def softmax_position(norm_values, positions, temp):
 
     The weights are a softmax over emotions of their normalized prominence, so
     the height swings toward whichever emotion is locally elevated. `temp` is
-    the temperature: small snaps to the dominant emotion, large averages
+    the temperature: small snaps to the strongest emotion, large averages
     (flat). `norm_values` is (k, ...) and `positions` (k,). NaN cells (outside
     a support mask) get no weight; an all-NaN point comes back NaN.
     """
@@ -84,7 +84,7 @@ def mood(scores, emotions, order=SPECTRUM, blend="banded", norm="rank",
          temp=0.15):
     """Per-paragraph mood in [0, 1], and the spectrum positions for the z axis.
 
-    Five ways of putting six emotions on one height:
+    Four ways of putting six emotions on one height:
 
         banded    each emotion gets its own band of the axis, centred on its
                   spectrum position; height within the band is how clearly it
@@ -93,8 +93,6 @@ def mood(scores, emotions, order=SPECTRUM, blend="banded", norm="rank",
         softmax   the softmax-weighted mean of spectrum positions. Readable,
                   but a mean: unless one emotion dominates it sits near the
                   middle, and a higher `temp` flattens it further.
-        dominant  the position of the winning emotion. Every height is a named
-                  emotion, but a step function with cliffs between plateaus.
         project   the normalized scores dotted with a centred spectrum
                   (sadness -1 ... humor +1): a sum, not a mean, so intensity
                   survives and nothing pulls it to the middle.
@@ -103,7 +101,7 @@ def mood(scores, emotions, order=SPECTRUM, blend="banded", norm="rank",
                   so up stays toward humor.
 
     Returns (mood, order, positions, winner) where `winner` is each paragraph's
-    dominant emotion as an index into `order`.
+    strongest normalized emotion as an index into `order`.
     """
     order = [e for e in order if e in emotions]
     order += [e for e in emotions if e not in order]
@@ -114,8 +112,6 @@ def mood(scores, emotions, order=SPECTRUM, blend="banded", norm="rank",
 
     if blend == "softmax":
         z = softmax_position(v.T, positions, temp)
-    elif blend == "dominant":
-        z = positions[win].astype(float)
     elif blend == "banded":
         srt = np.sort(v, axis=1)
         margin = srt[:, -1] - srt[:, -2]
