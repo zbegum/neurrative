@@ -59,11 +59,8 @@ perplexity of 30, the 3-D t-SNE layout is mostly noise — lower `--perplexity`
 
 ## Install
 
-```bash
-pip install -r requirements.txt
-```
-
-Python ≥ 3.9.
+The repository's top-level `requirements.txt` covers this folder; the
+`requirements.txt` here is the same list, for using the folder on its own.
 
 ## Data
 
@@ -214,9 +211,25 @@ paragraphs, so they are neighbours no matter what the text says.
 | `--elev`, `--azim` | `22`, `-60` | 3-D static camera |
 | `--no-html`, `--no-grid` | | skip the HTML / side-by-side figures |
 
+## Validation: is the arc real?
+
+`validation/` asks whether the arc is a feature of the embedding or an artifact
+of the windowing. Read it before trusting any arc figure.
+
+```bash
+python validation/arc_comparison.py --book alice_wonderland --model bge-m3
+python validation/arc_comparison_projections.py --book alice_wonderland --model bge-m3
+```
+
+- `arc_comparison.py`: the windowed arc against the raw per-paragraph path
+  (window = 1, no pooling) and against a shuffled reading order, under PCA.
+- `arc_comparison_projections.py`: the same comparison under UMAP and t-SNE.
+
+Output: `output/<book>/<model>/arc_comparison/`.
+
 ## Outputs
 
-Everything lands under `output/<book>/<model>/`, with every setting that changes
+Everything lands under `arc/output/<book>/<model>/`, with every setting that changes
 the numbers spelled into the filename so runs never overwrite each other:
 
 ```
@@ -237,10 +250,15 @@ params.json                                arguments, commit and settings of the
 ## Layout
 
 ```
-arc_2d.py, arc_3d.py, build_windows.py   command-line entry points
+arc_2d.py, arc_3d.py, arc_tube.py         command-line entry points
+grid_3d.py, sweep.py, build_windows.py
+explorer.py, tube_explorer.py            the interactive HTML pages
+validation/                              is the arc real? (see above)
 narrative_arc/
   data.py          loading books, embeddings, emotion scores; emotion palette
-  windows.py       window bounds, pooling, the saved series
+  windows.py       window bounds, pooling, the saved series (the one
+                   definition; common/windows.py imports it)
+  tube.py          the narrative tube: frames, sweep, mesh
   projections.py   PCA / UMAP / t-SNE in 2 or 3 components
   colors.py        what the windows are colored by
   curves.py        B-spline fit through the windows (sets up bspline-regression)

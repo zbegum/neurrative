@@ -1,17 +1,17 @@
-# closed-surface
+# surface/poisson — screened Poisson reconstruction
 
 A surface fitted to `(x, y) = (PC1, PC2)`, `z = emotion score`, through the
 vendored [PoissonRecon](https://github.com/mkazhdan/PoissonRecon) -- one per
 emotion, in either of two shapes.
 
-    closed-surface/build_vendor.sh                              # once
-    python closed-surface/check_recon.py                        # validate it
+    surface/poisson/build_vendor.sh                              # once
+    python surface/poisson/check_recon.py                        # validate it
 
     # the closed solid under the landscape, over the book's own outline
-    python closed-surface/fit_surface.py --book alice_wonderland --model bge-m3
+    python surface/poisson/fit_surface.py --book alice_wonderland --model bge-m3
 
     # the landscape alone, open, spanning the whole PCA rectangle
-    python closed-surface/fit_surface.py --book alice_wonderland --model bge-m3 \
+    python surface/poisson/fit_surface.py --book alice_wonderland --model bge-m3 \
       --open
 
 `--open` is the one to reach for if what you want is a *surface* in the sense
@@ -21,7 +21,7 @@ disk is an open sheet with a boundary, covering all of (PC1, PC2), plus the same
 `field_<emotion>_pca.npz` the kernel fits write. Everything below is about the
 closed object it is cut from.
 
-Output goes to `output/<book>/<model>/surface/poisson_closed/<variant>/`, or
+Output goes to `surface/poisson/output/<book>/<model>/poisson_closed/<variant>/`, or
 `poisson_open/` with `--open`, beside `bspline_ls` and the kernel smoothers,
 because it fits the same cloud.
 
@@ -33,12 +33,12 @@ because it fits the same cloud.
     check_recon.py         what holds the vendor call honest
     fit_surface.py         the driver over a book's emotions
 
-Unlike `b-surface/vendor/`, this is code that *runs*. It is MIT licensed and it
+Unlike `surface/bspline/vendor/`, this is code that *runs*. It is MIT licensed and it
 is C++ that builds here, so there was nothing to port.
 
 ## It is not a height field, and that is the point
 
-Every other fit of this cloud -- the four kernel smoothers and `b-surface` --
+Every other fit of this cloud -- the four kernel smoothers and `surface/bspline` --
 returns `z = f(x, y)`: one height per point of the PCA plane, an open sheet.
 Poisson reconstruction cannot return that. It takes *oriented* points and
 returns the boundary of the solid those normals bound: closed, two-sided,
@@ -95,7 +95,7 @@ rim of the rectangle, and `is_watertight` on it is correctly False.
 
 ## Knobs
 
-`--depth` is the smoothing knob and it runs like `b-surface`'s knot count rather
+`--depth` is the smoothing knob and it runs like `surface/bspline`'s knot count rather
 than a bandwidth: deeper is *less* smoothing. 8 puts 256 cells across the box.
 
 `--relief` is the height of a score of 1.0 in units of the PCA plane's width.

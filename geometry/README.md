@@ -13,6 +13,6 @@ module takes arrays and returns arrays.
 | `geodesic_cpp/` | Danil Kirsanov's exact geodesic library (Mitchell-Mount-Papadimitriou), vendored verbatim; see `UPSTREAM_README.txt`. `wrapper.cpp` is ours. |
 | `curve_smoothing.py` | Distance-based smoothing of a curve on a surface, after Pawellek, Rössl and Lawonn, *Distance-Based Smoothing of Curves on Surface Meshes*, Computer Graphics Forum 43(5), 2024. One tolerance `tau` bounds how far the smoothed arc may leave the original. |
 
-Import from the repository root (`from geometry.smoothers import gaussian_nw`);
-the scripts in `visualization/`, `b-surface/`, `closed-surface/` and
-`mood_surface/` put the root on `sys.path` themselves.
+Import from the repository root (`from geometry.smoothers import gaussian_nw`).
+Every script puts the root on `sys.path` itself (the short bootstrap block at the
+top of each file), so they run from any working directory.

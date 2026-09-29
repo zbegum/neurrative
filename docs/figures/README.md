@@ -2,14 +2,14 @@
 
 A curated set of the projection, sweep and narrative-arc figures, committed so
 they can be read on GitHub without running anything. Every one is regenerated
-by the command under it into `output/` (or `narrative-arc/output/`), along with
+by the command under it into `output/` (or `arc/output/`), along with
 the same figure for every other book × model. Numbers are for `bge-m3` unless
 noted.
 
 ## 1. PCA vs UMAP vs t-SNE (paragraph level)
 
-`python visualization/embedding_grid.py --book <book> --all-models`, then
-`python visualization/projection_comparison.py --all`
+`python projection/embedding_grid.py --book <book> --all-models`, then
+`python projection/projection_comparison.py --all`
 
 Columns are neighbourhood scale (local / default / global): UMAP
 `n_neighbors` 5 / 15 / 50, t-SNE perplexity 5 / 30 / 100; PCA has no parameter.
@@ -47,7 +47,7 @@ t-SNE over perplexity × learning rate.
 
 ## 2. Reading order as graph structure (chain-UMAP)
 
-`python visualization/chain_umap.py --book <book> --all-models`
+`python projection/chain_umap.py --book <book> --all-models`
 
 UMAP's fuzzy graph gets extra edges between each paragraph and the next two,
 weighted by `beta`. For Alice, going from `beta = 0` (plain UMAP) to `beta = 2`
@@ -60,7 +60,7 @@ from 0.91 to 0.81. There is no principled `beta`; the curve is the result.
 
 ## 3. The narrative arc under different projections and windows
 
-`cd narrative-arc && python sweep.py --all-books --all-models`, and
+`cd arc && python sweep.py --all-books --all-models`, and
 `python grid_3d.py --all-books --all-models`
 
 **Projection parameters** (window 20, stride 10: 78 windows). t-SNE perplexity
@@ -90,13 +90,13 @@ seems to cross itself in one flat view can be checked against the other two.
 
 ## 4. The 2-D arc and its B-spline fit
 
-`cd narrative-arc && python arc_2d.py --all-books --all-models --fit --show-control`
+`cd arc && python arc_2d.py --all-books --all-models --fit --show-control`
 (and `arc_3d.py` with the same flags)
 
 Windows of 40 paragraphs stepping by 20, joined in reading order: **O** is the
 opening, **X** the ending, and the color is reading position. The thick curve is
 a cubic uniform B-spline fitted with `bspline-regression`
-(`narrative-arc/narrative_arc/curves.py`), which optimises the control points
+(`arc/narrative_arc/curves.py`), which optimises the control points
 (the dashed polygon) and each window's position on the curve at the same time.
 The fit starts from reading order, so a path that crosses itself keeps its two
 passes apart. Defaults: 12 control points, `lambda` 0.1.

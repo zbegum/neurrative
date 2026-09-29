@@ -1,19 +1,19 @@
-# b-surface
+# surface/bspline — least-squares B-spline surface
 
 A least-squares tensor-product B-spline surface fitted to
 `z = emotion score` over `(x, y) = (PC1, PC2)`, one surface per emotion.
 
-    python b-surface/check_port.py                              # validate the port
-    python b-surface/fit_surface.py --book alice_wonderland --model bge-m3
-    python b-surface/fit_surface.py --book alice_wonderland --model bge-m3 \
+    python surface/bspline/check_port.py                              # validate the port
+    python surface/bspline/fit_surface.py --book alice_wonderland --model bge-m3
+    python surface/bspline/fit_surface.py --book alice_wonderland --model bge-m3 \
       --domain unit                                            # cover the whole square
-    python b-surface/fit_surface.py --book alice_wonderland --model bge-m3 \
+    python surface/bspline/fit_surface.py --book alice_wonderland --model bge-m3 \
       --domain unit --control 3 --grid --control-net    # 3x3, all six, one figure
-    python b-surface/fit_surface.py --book alice_wonderland --model bge-m3 \
+    python surface/bspline/fit_surface.py --book alice_wonderland --model bge-m3 \
       --emotions wonder --sweep
 
 Outputs go where every other fit of this family goes,
-`output/<book>/<model>/surface/bspline_ls/<variant>/`, next to `isotropic_loo`
+`surface/bspline/output/<book>/<model>/bspline_ls/<variant>/`, next to `isotropic_loo`
 and the four kernel smoothers. It is a different estimator of the same object,
 so it is a sibling of theirs rather than a directory of its own -- and it writes
 `field_<emotion>_pca.npz` with the same keys, so the geodesic stack can walk on
@@ -31,7 +31,7 @@ named `..._pca_unit` rather than `..._pca`, because its coordinates are not
     check_port.py                         what holds the port honest
     fit_surface.py                        the driver over a book's emotions
 
-Why a port rather than a bridge like `visualization/fit_bspline.js`: MATLAB is
+Why a port rather than a bridge (as the old JS B-spline curve fitter was): MATLAB is
 not installed, and the upstream repo carries no license. So the code that runs
 is ours and the MATLAB sits beside it as the specification. `check_port.py`
 covers partition of unity, exact reproduction of a cubic, agreement between the
@@ -40,7 +40,7 @@ own surface example rebuilt in numpy.
 
 ## How it differs from the kernel surfaces
 
-`visualization/emotion_surface.py` and the `smooth_*` family fit the same height
+`surface/kernel/loo.py` and the `smooth_*` family fit the same height
 field by kernel smoothing: no parameters, just a reweighting of nearby
 paragraphs at every query point. This fits *parameters* -- a grid of control
 heights -- and the surface afterwards is that basis expansion, with no further
@@ -85,7 +85,7 @@ so a coefficient becomes whatever continues its neighbours. `--penalty-order 1`
 (the default) continues *flat*, so the surface levels off at the nearby scores.
 `--penalty-order 2` continues the edge *slope*, which over a domain this much
 bigger than the cloud walks straight out of `[0, 1]` -- the same reason
-`closed-surface/poisson.py` refuses a local linear extension. Available, not the
+`surface/poisson/poisson.py` refuses a local linear extension. Available, not the
 default.
 
 **The rejection rule.** Cross-validation cannot see any of this: it scores
