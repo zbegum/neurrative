@@ -1,0 +1,7 @@
+# preprocess/: paragraph embeddings and LLM emotion annotation (GPU recommended).
+# Only needed to add a new book; the committed books/ already contain the outputs.
+numpy>=1.24
+torch
+transformers
+sentence-transformers
+tqdm
