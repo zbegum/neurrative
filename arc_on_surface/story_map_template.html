@@ -31,13 +31,14 @@ __HEAD_LIBS__
 __VIEWER_JS__
 
 const DATA = __DATA__;
-const NAMES = { kernel: "kernel", bspline: "b-spline", poisson: "poisson", mood: "mood" };
+const NAMES = { kernel: "kernel", bspline: "b-spline", poisson: "poisson" };
 const S = { book: Object.keys(DATA.books)[0], emotion: DATA.emotions[0], method: "kernel", three: false, i: 0 };
 const book = () => DATA.books[S.book];
-const field = () => { const f = book().fields[S.method]; return f && (f[S.emotion] || f["*"]); };
-const series = () => book().timeline[S.method === "mood" ? "mood" : S.emotion];
+const field = () => book().fields[S.method][S.emotion];
+const series = () => book().timeline[S.emotion];
 
 for (const [k, b] of Object.entries(DATA.books)) $("book").add(new Option(b.title, k));
+if (Object.keys(DATA.books).length < 2) $("book").style.display = "none";
 for (const e of DATA.emotions) $("emotion").add(new Option(e, e));
 function methods() {
   const sel = $("method"), keep = S.method;
@@ -45,11 +46,10 @@ function methods() {
   for (const k of Object.keys(book().fields)) sel.add(new Option(NAMES[k] || k, k));
   S.method = book().fields[keep] ? keep : "kernel";
   sel.value = S.method;
-  $("emotion").disabled = S.method === "mood";
 }
 $("book").onchange = (e) => { S.book = e.target.value; S.i = 0; methods(); draw(); };
 $("emotion").onchange = (e) => { S.emotion = e.target.value; draw(); };
-$("method").onchange = (e) => { S.method = e.target.value; $("emotion").disabled = S.method === "mood"; draw(); };
+$("method").onchange = (e) => { S.method = e.target.value; draw(); };
 $("dim").onclick = () => {
   S.three = !S.three; $("dim").setAttribute("aria-pressed", S.three);
   $("map2d").classList.toggle("hidden", S.three); $("map3d").classList.toggle("hidden", !S.three);
@@ -89,6 +89,17 @@ function draw2d() {
     .attr("x1", (s) => sx(s[0][0])).attr("y1", (s) => sy(s[0][1]))
     .attr("x2", (s) => sx(s[1][0])).attr("y2", (s) => sy(s[1][1]))
     .attr("stroke", (s) => orderAt(s[0][2] / N));
+  // what the map means: PC1 / PC2 of the paragraph embeddings, and the colour key
+  const muted = css("--ink-3"), fmt = d3.format(".2f");
+  svg.append("text").attr("x", (sx(x0) + sx(x1)) / 2).attr("y", Math.min(H - 6, sy(y0) + 16)).attr("text-anchor", "middle")
+    .attr("fill", muted).attr("font-size", 12).text("PC1");
+  svg.append("text").attr("transform", `translate(${Math.max(12, sx(x0) - 8)},${(sy(y0) + sy(y1)) / 2}) rotate(-90)`)
+    .attr("text-anchor", "middle").attr("fill", muted).attr("font-size", 12).text("PC2");
+  const key = svg.append("g").attr("transform", `translate(${W - m - R.length * 14 - 4},${H - 30})`);
+  key.selectAll("rect").data(R).join("rect").attr("x", (c, j) => j * 14).attr("width", 14).attr("height", 8).attr("fill", (c) => c);
+  key.append("text").attr("x", -6).attr("y", 8).attr("text-anchor", "end").attr("fill", muted).attr("font-size", 11).text(fmt(lo));
+  key.append("text").attr("x", R.length * 14 + 6).attr("y", 8).attr("fill", muted).attr("font-size", 11).text(fmt(hi));
+  key.append("text").attr("x", R.length * 7).attr("y", -5).attr("text-anchor", "middle").attr("fill", muted).attr("font-size", 11).text(S.emotion);
   svg.append("circle").attr("id", "mark").attr("r", 6).attr("fill", css("--ink"))
     .attr("stroke", css("--surface")).attr("stroke-width", 2);
 }
@@ -109,6 +120,10 @@ function draw3d() {
   const h = (v) => lift(v, lo, hi);
   ground = terrain(f, b.n, b.extent, { height: h, lo, hi, keep: (k) => b.support[k] >= 1 });
   scene3.group.add(ground);
+  const fmt = d3.format(".2f");
+  scene3.group.add(axes3d(scene3, b.extent, {
+    height: RELIEF, title: S.emotion,
+    ticks: [lo, (lo + hi) / 2, hi].map((v) => [h(v), fmt(v)]) }));
   arc3 = denseArc(b.arc).map(([x, y, c]) => {
     const v = sample(f, b.n, b.extent, x, y);
     return [F.X(x), h(Number.isFinite(v) ? v : lo) + 0.006, F.Z(y), c];
@@ -155,7 +170,7 @@ function go(i) {
   }
   tl.set(S.i);
   setText(b, S.i, $("chapter"), $("text"));
-  publish(`${S.book}/${S.method === "mood" ? "mood" : S.emotion}/${S.i}${S.three ? "/3d" : ""}`);
+  publish(`${S.book}/${S.emotion}/${S.i}${S.three ? "/3d" : ""}`);
 }
 function draw() {
   S.three ? draw3d() : draw2d();
@@ -164,13 +179,12 @@ function draw() {
 }
 readingKeys(() => S.i, () => book().text.length, go);
 
-// open at #book/emotion-or-mood/paragraph[/3d] -- on load, and whenever the hash is set
+// open at #book/emotion/paragraph[/3d] -- on load, and whenever the hash is set
 function fromHash(state) {
   const [bk, em, i, d] = state.split("/");
   if (DATA.books[bk]) S.book = bk;
   $("book").value = S.book; methods();
-  if (em === "mood" && book().fields.mood) { S.method = "mood"; $("method").value = "mood"; $("emotion").disabled = true; }
-  else if (DATA.emotions.includes(em)) { S.emotion = em; $("emotion").value = em; }
+  if (DATA.emotions.includes(em)) { S.emotion = em; $("emotion").value = em; }
   if (i && !isNaN(+i)) S.i = +i;
   S.three = d === "3d"; $("dim").setAttribute("aria-pressed", S.three);
   $("map2d").classList.toggle("hidden", S.three); $("map3d").classList.toggle("hidden", !S.three);

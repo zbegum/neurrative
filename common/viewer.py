@@ -23,6 +23,7 @@ EMOTIONS = ["wonder", "curiosity", "humor", "confusion", "danger", "sadness"]
 TITLES = {"alice_wonderland": "Alice's Adventures in Wonderland",
           "pride_and_prejudice": "Pride and Prejudice", "hamlet": "Hamlet"}
 SCORED_BOOKS = ["alice_wonderland", "pride_and_prejudice"]
+VIEWER_BOOKS = ["alice_wonderland"]   # the books the interactive pages show by default
 GRID = 110           # common grid per axis
 TIMELINE_SIGMA = 8   # paragraphs; smooths the timeline curve only
 

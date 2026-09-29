@@ -38,6 +38,7 @@ const S = { book: Object.keys(DATA.books)[0], proj: "pca", emotion: DATA.emotion
 const book = () => DATA.books[S.book];
 
 for (const [k, b] of Object.entries(DATA.books)) $("book").add(new Option(b.title, k));
+if (Object.keys(DATA.books).length < 2) $("book").style.display = "none";
 for (const e of DATA.emotions) $("emotion").add(new Option(e, e));
 function controlsFor() {
   const b = book(), sel = $("proj");

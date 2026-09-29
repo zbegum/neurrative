@@ -35,6 +35,7 @@ const book = () => DATA.books[S.book];
 // the colour of a mood value: the emotions' colours at their spectrum positions, blended
 const moodColor = () => d3.scaleLinear(book().positions, book().colors).interpolate(d3.interpolateLab).clamp(true);
 for (const [k, b] of Object.entries(DATA.books)) $("book").add(new Option(b.title, k));
+if (Object.keys(DATA.books).length < 2) $("book").style.display = "none";
 $("book").onchange = (e) => { S.book = e.target.value; S.i = 0; draw(); };
 
 const scene = Scene($("stage"));
@@ -48,10 +49,10 @@ function draw() {
   ground = terrain(f, b.n, b.extent, { height: (v) => v * H, color: moodColor(),
                                        keep: (k) => b.support[k] >= 1 });
   scene.group.add(ground);
+  scene.group.add(axes3d(scene, b.extent));   // PC1 / PC2 on the floor
   // the emotion axis, standing just left of the terrain as the starting camera sees
   // it: the spectrum, sadness at the bottom
-  const cam = scene.camera.position, r = Math.hypot(cam.x, cam.z);
-  const corner = [-1.05 * cam.z / r, 0, 1.05 * cam.x / r];
+  const corner = axisFoot(scene);
   scene.group.add(curve([[corner[0], 0, corner[2]], [corner[0], H, corner[2]]], 0.0025, css("--arc")));
   b.order.forEach((name, j) => {
     const y = b.positions[j] * H;

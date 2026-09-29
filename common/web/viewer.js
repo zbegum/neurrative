@@ -21,7 +21,7 @@ function setText(book, i, chapterEl, textEl) {
 
 // A timeline of one series over reading order; returns { draw(series, chapter), set(i) }.
 function Timeline(el, onSeek) {
-  let tx = null;
+  let tx = null, spans = [];
   const svg = d3.select(el);
   // stops: optional [[value, colour], ...] -- the curve is coloured by its value;
   // order: draw a thin strip in the reading-order colours (the key to a coloured arc)
@@ -34,8 +34,19 @@ function Timeline(el, onSeek) {
     if (flat) hi = lo + 1;
     const ty = d3.scaleLinear([lo - (hi - lo) * 0.08, hi], [H - m.b, m.t]);
     svg.selectAll("*").remove();
+    // chapters: a faint band each (alternating), the current one darker (set), and
+    // the chapter number where the band is wide enough to hold it
     const starts = chapter.map((c, j) => (j === 0 || c !== chapter[j - 1]) ? j : null)
       .filter((j) => j !== null);
+    spans = starts.map((s, k) => [s, k + 1 < starts.length ? starts[k + 1] : N - 1]);
+    const ink = css("--ink");
+    svg.append("g").attr("class", "chapters").selectAll("rect").data(spans).join("rect")
+      .attr("x", (d) => tx(d[0])).attr("width", (d) => Math.max(0, tx(d[1]) - tx(d[0])))
+      .attr("y", m.t - 6).attr("height", H - m.b - m.t + 6)
+      .attr("fill", ink).attr("fill-opacity", (d, k) => (k % 2 ? 0.035 : 0));
+    svg.append("g").attr("fill", css("--ink-3")).attr("font-size", 10).selectAll("text")
+      .data(spans.map((d, k) => [d, k]).filter(([d]) => tx(d[1]) - tx(d[0]) >= 22)).join("text")
+      .attr("x", ([d]) => tx(d[0]) + 4).attr("y", m.t - 1).text(([, k]) => k + 1);
     svg.append("g").attr("stroke", css("--arc")).selectAll("line").data(starts).join("line")
       .attr("x1", tx).attr("x2", tx).attr("y1", H - m.b).attr("y2", H - m.b + 6);
     if (!flat) {
@@ -69,7 +80,11 @@ function Timeline(el, onSeek) {
     .on("pointermove", (ev) => { if (ev.buttons) seek(ev); });
   return {
     draw,
-    set(i) { svg.select(".cursor").attr("x1", tx(i)).attr("x2", tx(i)); },
+    set(i) {
+      svg.select(".cursor").attr("x1", tx(i)).attr("x2", tx(i));
+      svg.selectAll(".chapters rect").attr("fill-opacity", (d, k) =>
+        (i >= d[0] && (i < d[1] || k === spans.length - 1) ? 0.09 : (k % 2 ? 0.035 : 0)));
+    },
   };
 }
 
@@ -250,17 +265,42 @@ function curve(points, radius, color, { colorAt = null, opacity = 1 } = {}) {
 }
 
 // A text label at a 3-D point (muted, small).
-// `align: "right"` puts the text to the left of the point, ending just before it.
+// `align: "right"` puts the text to the left of the point, ending just before it;
+// "left" to its right; "center" centred on it.
 function label(text, p, { align = "right", dot = null } = {}) {
   const div = document.createElement("div");      // positioned by CSS2DRenderer
   const span = document.createElement("span");    // offset inside it
   span.textContent = text;
   if (dot) span.innerHTML += ` <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dot};margin-left:4px;vertical-align:1px"></span>`;
   span.style.cssText = `display:inline-block;color:${css("--ink-2")};font-size:12px;white-space:nowrap;` +
-    (align === "right" ? "transform:translateX(calc(-50% - 10px));" : "transform:translateX(calc(50% + 10px));");
+    (align === "right" ? "transform:translateX(calc(-50% - 10px));"
+      : align === "left" ? "transform:translateX(calc(50% + 10px));" : "");
   div.appendChild(span);
   const o = new CSS2DObject(div); o.position.set(...p);
   return o;
+}
+
+// Where the axes stand: just left of the terrain as the starting camera sees it.
+function axisFoot(scene) {
+  const cam = scene.camera.position, r = Math.hypot(cam.x, cam.z);
+  return [-1.05 * cam.z / r, 0, 1.05 * cam.x / r];
+}
+
+// An axis tripod at axisFoot: short arrows along PC1 (world +x) and PC2 (world -z,
+// since PC2 grows away from the viewer), and optionally a vertical axis with ticks
+// [[height, text], ...] and a title.
+function axes3d(scene, extent, { x = "PC1", z = "PC2", height = null, ticks = [], title = null } = {}) {
+  const col = css("--arc"), g = new THREE.Group(), p = axisFoot(scene), L = 0.35;
+  g.add(curve([p, [p[0] + L, 0, p[2]]], 0.002, col));
+  g.add(label(x, [p[0] + L, 0, p[2]], { align: "left" }));
+  g.add(curve([p, [p[0], 0, p[2] - L]], 0.002, col));
+  g.add(label(z, [p[0], 0, p[2] - L], { align: "left" }));
+  if (height !== null) {
+    g.add(curve([p, [p[0], height, p[2]]], 0.002, col));
+    for (const [h, t] of ticks) g.add(label(t, [p[0], h, p[2]]));
+    if (title) g.add(label(title, [p[0], height + 0.08, p[2]], { align: "center" }));
+  }
+  return g;
 }
 
 function ball(p, radius, color) {

@@ -70,7 +70,7 @@ def book_data(book, model):
 def main():
   ap = argparse.ArgumentParser(description=__doc__.strip().split("\n\n")[0])
   ap.add_argument("--model", default="bge-m3")
-  ap.add_argument("--books", nargs="+", default=["alice_wonderland", "pride_and_prejudice", "hamlet"])
+  ap.add_argument("--books", nargs="+", default=V.VIEWER_BOOKS)
   ap.add_argument("--output", default=os.path.join(_ARC, "output", "arc_viewer.html"))
   args = ap.parse_args()
   data = {"emotions": V.EMOTIONS, "spectrum": SPECTRUM, "colors": EMOTION_COLOR,

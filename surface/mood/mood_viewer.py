@@ -66,7 +66,7 @@ def book_data(book, model, blend, h):
 def main():
   ap = argparse.ArgumentParser(description=__doc__.strip().split("\n\n")[0])
   ap.add_argument("--model", default="bge-m3")
-  ap.add_argument("--books", nargs="+", default=V.SCORED_BOOKS)
+  ap.add_argument("--books", nargs="+", default=V.VIEWER_BOOKS)
   ap.add_argument("--blend", default="banded", choices=mood_mod.BLENDS)
   ap.add_argument("--h", default=0.2, type=float, help="surface bandwidth (standardized units)")
   ap.add_argument("--output", default=os.path.join(HERE, "output", "mood_viewer.html"))
