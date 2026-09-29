@@ -106,13 +106,13 @@ function go(i) {
   scene.request();
   tl.set(S.i);
   setText(b, S.i, $("chapter"), $("text"));
-  history.replaceState(null, "", `#${S.book}/${S.proj}/${S.emotion}/${S.i}${S.tube ? "/tube" : ""}`);
+  publish(`${S.book}/${S.proj}/${S.emotion}/${S.i}${S.tube ? "/tube" : ""}`);
 }
 readingKeys(() => S.i, () => book().text.length, go);
 
-// open at #book/projection/emotion/paragraph[/tube]
-{
-  const [bk, pr, em, i, tb] = decodeURIComponent(location.hash.slice(1)).split("/");
+// open at #book/projection/emotion/paragraph[/tube] -- on load, and whenever the hash is set
+function fromHash(state) {
+  const [bk, pr, em, i, tb] = state.split("/");
   if (DATA.books[bk]) S.book = bk;
   $("book").value = S.book;
   if (pr) S.proj = pr;
@@ -120,9 +120,11 @@ readingKeys(() => S.i, () => book().text.length, go);
   $("emotion").value = S.emotion;
   if (i && !isNaN(+i)) S.i = +i;
   controlsFor();
-  if (tb === "tube" && $("tube").style.display !== "none") { S.tube = true; $("tube").setAttribute("aria-pressed", true); }
+  S.tube = tb === "tube" && $("tube").style.display !== "none";
+  $("tube").setAttribute("aria-pressed", S.tube);
   draw();
 }
+follow(fromHash);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
 </script>
 </body>

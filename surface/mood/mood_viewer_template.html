@@ -93,18 +93,19 @@ function go(i) {
   setText(b, S.i, $("chapter"), $("text"));
   const e = d3.minIndex(b.positions, (p) => Math.abs(p - b.mood[S.i]));
   $("mood").innerHTML = `<i style="background:${b.colors[e]}"></i>${b.order[e]}`;
-  history.replaceState(null, "", `#${S.book}/${S.i}`);
+  publish(`${S.book}/${S.i}`);
 }
 readingKeys(() => S.i, () => book().text.length, go);
 
-// open at #book/paragraph
-{
-  const [bk, i] = decodeURIComponent(location.hash.slice(1)).split("/");
+// open at #book/paragraph -- on load, and whenever the hash is set
+function fromHash(state) {
+  const [bk, i] = state.split("/");
   if (DATA.books[bk]) S.book = bk;
   $("book").value = S.book;
   if (i && !isNaN(+i)) S.i = +i;
   draw();
 }
+follow(fromHash);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
 </script>
 </body>

@@ -62,6 +62,19 @@ function Timeline(el, onSeek) {
   };
 }
 
+// The page's state as a URL fragment ("book/.../paragraph"): kept in the address,
+// and sent to the tabbed page when this view is one of its tabs.
+function publish(state) {
+  try { history.replaceState(null, "", "#" + state); } catch (e) { /* e.g. about:srcdoc */ }
+  if (window.parent !== window) window.parent.postMessage({ viewerState: state }, "*");
+}
+// Open from the address now, and again whenever the tabbed page sends a state.
+function follow(apply) {
+  apply(decodeURIComponent(location.hash.slice(1)));
+  window.addEventListener("hashchange", () => apply(decodeURIComponent(location.hash.slice(1))));
+  window.addEventListener("message", (e) => { if (typeof e.data?.viewerState === "string") apply(e.data.viewerState); });
+}
+
 // Arrows step (shift: 20), space plays.
 function readingKeys(getI, getN, go) {
   let playing = null;

@@ -143,7 +143,7 @@ function go(i) {
   }
   tl.set(S.i);
   setText(b, S.i, $("chapter"), $("text"));
-  history.replaceState(null, "", `#${S.book}/${S.method === "mood" ? "mood" : S.emotion}/${S.i}${S.three ? "/3d" : ""}`);
+  publish(`${S.book}/${S.method === "mood" ? "mood" : S.emotion}/${S.i}${S.three ? "/3d" : ""}`);
 }
 function draw() {
   S.three ? draw3d() : draw2d();
@@ -152,16 +152,19 @@ function draw() {
 }
 readingKeys(() => S.i, () => book().text.length, go);
 
-// open at #book/emotion-or-mood/paragraph[/3d]
-{
-  const [bk, em, i, d] = decodeURIComponent(location.hash.slice(1)).split("/");
+// open at #book/emotion-or-mood/paragraph[/3d] -- on load, and whenever the hash is set
+function fromHash(state) {
+  const [bk, em, i, d] = state.split("/");
   if (DATA.books[bk]) S.book = bk;
   $("book").value = S.book; methods();
   if (em === "mood" && book().fields.mood) { S.method = "mood"; $("method").value = "mood"; $("emotion").disabled = true; }
   else if (DATA.emotions.includes(em)) { S.emotion = em; $("emotion").value = em; }
   if (i && !isNaN(+i)) S.i = +i;
-  if (d === "3d") $("dim").click(); else draw();
+  S.three = d === "3d"; $("dim").setAttribute("aria-pressed", S.three);
+  $("map2d").classList.toggle("hidden", S.three); $("map3d").classList.toggle("hidden", !S.three);
+  draw();
 }
+follow(fromHash);
 window.addEventListener("resize", () => { if (!S.three) draw(); });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
 </script>
