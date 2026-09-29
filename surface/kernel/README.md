@@ -35,6 +35,11 @@ Output: `surface/kernel/output/<book>/<model>/<method>/<variant>/`, with a
 | humor | 6.8% | 6.8% | 7.0% | 6.7% |
 | sadness | 4.3% | 4.5% | 4.7% | 2.2% |
 
-The smoother barely matters; the emotion does. `bandwidth_grid.py` and
+On Alice the smoother barely matters; the emotion does. Pride and Prejudice
+reverses the order of the emotions (sadness improves by about 20%, wonder by at
+most 1%), and there LOESS falls behind: 12.7% on sadness against 19–22% for the
+other three, and slightly worse than a flat average on confusion and humor. It
+often settles on `frac` 0.8, the edge of its search ladder, so its ladder is
+worth widening before reading much into it. `bandwidth_grid.py` and
 `smooth_grid.py` are there to look at the other half of that claim: how much
 the bandwidth, rather than the kernel, changes the surface.

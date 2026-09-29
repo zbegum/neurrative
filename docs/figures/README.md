@@ -130,3 +130,114 @@ The other two books, colored by reading position:
 
 ![Pride and Prejudice: 2-D arc with B-spline](17_arc_2d_bspline_pride.png)
 ![Hamlet: 2-D arc with B-spline](18_arc_2d_bspline_hamlet.png)
+
+## 5. The emotion landscape
+
+For each emotion, a surface over the PCA plane whose height is that emotion's
+score: `z = emotion(PC1, PC2)`. Every method is in its own folder under
+`surface/`; see [surface/README.md](../../surface/README.md).
+
+**The raw material.** Each paragraph as a point, nothing fitted: the scores are
+noisy, and neighbouring paragraphs can disagree a lot. Every surface below is a
+way of averaging this cloud.
+`python surface/points/raw_points.py --book <book> --model bge-m3`
+
+![Alice: wonder, raw points](19_points_wonder_alice.png)
+
+**Kernel smoothing** (`surface/kernel/`): the height at a point is a weighted
+average of the paragraphs near it, with the bandwidth chosen by cross-validation
+and scored once on a held-out 20% of paragraphs. The second figure walks the
+bandwidth from under- to over-smoothed, for every kernel.
+`python surface/kernel/gaussian.py --book <book> --model bge-m3`
+
+![Alice: wonder, Gaussian kernel surface](20_kernel_gaussian_wonder_alice.png)
+![Alice: wonder, every kernel across bandwidths](21_kernel_bandwidth_wonder_alice.png)
+
+| held-out improvement over a flat average | most structure | least structure |
+|---|---|---|
+| Alice | wonder 18–19% | sadness 2–5% |
+| Pride and Prejudice | sadness 19–22% | wonder about 1% |
+
+The kernels agree closely with each other; which emotion has spatial structure
+depends on the book.
+
+**B-spline surface** (`surface/bspline/`): one global smooth surface defined by
+a small grid of control heights. Cross-validation keeps the grid tiny (2–3 knots
+per axis). With only nine control points over the whole plane (second figure,
+control net in red), the surfaces are nearly the same: the landscape is a tilt
+with one bend, not terrain.
+`python surface/bspline/fit_surface.py --book <book> --model bge-m3 --grid`
+
+![Alice: B-spline surfaces, all six emotions](22_bspline_six_emotions_alice.png)
+![Alice: B-spline surfaces with 3x3 control points](23_bspline_nine_control_points_alice.png)
+![Pride and Prejudice: B-spline surfaces, all six emotions](27_bspline_six_emotions_pride.png)
+
+**Poisson reconstruction** (`surface/poisson/`): the landscape as the lid of a
+watertight solid (Euler characteristic 2 for all six emotions in both books),
+cut back to an open sheet over the whole plane. The orange line is the edge of
+where the book's paragraphs actually are; outside it the surface is extension,
+not data.
+`python surface/poisson/fit_surface.py --book <book> --model bge-m3 --open`
+
+![Alice: wonder, Poisson surface](24_poisson_wonder_alice.png)
+
+**The mood surface** (`surface/mood/`): the six emotions collapsed to one value
+per paragraph on a sadness → humor spectrum, then one surface, drawn here over
+the chain-UMAP layout. The blends figure shows the five ways of collapsing six
+emotions to one height. For `project` and `pc1` the height is a direction
+(heavy → light) rather than a position on the spectrum, so read their emotion
+ticks only as low and high.
+`python surface/mood/run.py --book <book> --model bge-m3 --figure surface`
+
+![Alice: mood surface](25_mood_surface_alice.png)
+![Alice: five blends](26_mood_blends_alice.png)
+
+## 6. The arc on the landscape
+
+The narrative arc from step 3, with a third axis that comes from the emotions.
+See [arc_on_surface/README.md](../../arc_on_surface/README.md).
+
+**On the terrain** (`arc_on_surface.py`): windows of 10 paragraphs stepping by
+5, each placed on the fitted surface of one emotion. By default consecutive
+windows are joined by straight lines in the plane lifted onto the surface, so
+the route's shadow is exactly the 2-D arc; `--legs geodesic` joins them by
+shortest paths along the terrain instead. The dashed green line is the geodesic
+between the two ends, for context. Grey is terrain with too few paragraphs
+under it to be measured.
+`python arc_on_surface/arc_on_surface.py --book <book> --model bge-m3`
+
+![Alice: the arc on each emotion surface](28_arc_on_terrain_alice.png)
+
+**On one mood axis** (`arc_emotion_axis.py`): the same arc over a single surface
+whose height is the mood, so following the route is watching the mood change.
+Colour is the dominant emotion of each window.
+
+![Alice: the arc on the mood axis](29_arc_on_mood_axis_alice.png)
+![Pride and Prejudice: the arc on the mood axis](34_arc_on_mood_axis_pride.png)
+
+**Smoothing the arc on the surface** (`arc_smooth.py`, Pawellek et al. 2024):
+one tolerance `tau` sets how closely the smoothed curve follows the raw arc,
+from the straight geodesic between the ends (`tau` = 0) to hugging every window
+(large `tau`).
+
+![Alice: distance-based smoothing across tau](30_arc_curve_smoothing_alice.png)
+
+**Geodesics toward an emotion** (`geodesic_arrows.py`): for the strongest rises
+in wonder between consecutive paragraphs, the shortest path along the wonder
+terrain. The paths bend around hills rather than going over them; how much
+depends on the vertical scale `alpha`.
+
+![Alice: geodesics along the wonder terrain](31_geodesics_wonder_alice.png)
+
+**The arc on the mood surface** (`surface/mood/run.py --figure arc`): one
+central paragraph per chapter, joined by exact geodesics on the mood surface,
+coloured by reading position.
+
+![Alice: the arc as geodesics on the mood surface](32_mood_arc_geodesic_alice.png)
+
+**The narrative tube** (`arc/tube/arc_tube.py`): the fitted 3-D arc thickened
+into a tube whose cross-section has one vertex per emotion, so the tube bulges
+toward whichever emotion is strong in that part of the book.
+
+![Alice: narrative tube](33_tube_alice.png)
+![Pride and Prejudice: narrative tube](35_tube_pride.png)
