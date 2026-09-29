@@ -291,6 +291,7 @@ function axisFoot(scene) {
 // [[height, text], ...] and a title.
 function axes3d(scene, extent, { x = "PC1", z = "PC2", height = null, ticks = [], title = null } = {}) {
   const col = css("--arc"), g = new THREE.Group(), p = axisFoot(scene), L = 0.35;
+  g.userData.axes = true;
   g.add(curve([p, [p[0] + L, 0, p[2]]], 0.002, col));
   g.add(label(x, [p[0] + L, 0, p[2]], { align: "left" }));
   g.add(curve([p, [p[0], 0, p[2] - L]], 0.002, col));
@@ -301,6 +302,12 @@ function axes3d(scene, extent, { x = "PC1", z = "PC2", height = null, ticks = []
     if (title) g.add(label(title, [p[0], height + 0.08, p[2]], { align: "center" }));
   }
   return g;
+}
+
+// Show or hide every group tagged userData.axes under `root`. Each object is set
+// one by one, since the text labels (CSS2DObject) do not inherit visibility.
+function showAxes(root, on) {
+  root.traverse((o) => { if (o.userData.axes) o.traverse((c) => { c.visible = on; }); });
 }
 
 function ball(p, radius, color) {

@@ -21,6 +21,7 @@ __HEAD_LIBS__
 <header>
   <select id="book"></select><select id="emotion"></select><select id="method"></select>
   <button class="toggle" id="dim" aria-pressed="false">3D</button>
+  <button class="toggle" id="axes" aria-pressed="true">axes</button>
 </header>
 <main>
   <div class="stage"><svg id="map2d" class="scene"></svg><div id="map3d" class="hidden"></div></div>
@@ -32,7 +33,7 @@ __VIEWER_JS__
 
 const DATA = __DATA__;
 const NAMES = { kernel: "kernel", bspline: "b-spline", poisson: "poisson" };
-const S = { book: Object.keys(DATA.books)[0], emotion: DATA.emotions[0], method: "kernel", three: false, i: 0 };
+const S = { book: Object.keys(DATA.books)[0], emotion: DATA.emotions[0], method: "kernel", three: false, i: 0, axes: true };
 const book = () => DATA.books[S.book];
 const field = () => book().fields[S.method][S.emotion];
 const series = () => book().timeline[S.emotion];
@@ -50,6 +51,11 @@ function methods() {
 $("book").onchange = (e) => { S.book = e.target.value; S.i = 0; methods(); draw(); };
 $("emotion").onchange = (e) => { S.emotion = e.target.value; draw(); };
 $("method").onchange = (e) => { S.method = e.target.value; draw(); };
+$("axes").onclick = () => {
+  S.axes = !S.axes; $("axes").setAttribute("aria-pressed", S.axes);
+  d3.select("#map2d .axes").style("display", S.axes ? null : "none");
+  if (scene3) { showAxes(scene3.group, S.axes); scene3.request(); }
+};
 $("dim").onclick = () => {
   S.three = !S.three; $("dim").setAttribute("aria-pressed", S.three);
   $("map2d").classList.toggle("hidden", S.three); $("map3d").classList.toggle("hidden", !S.three);
@@ -91,11 +97,12 @@ function draw2d() {
     .attr("stroke", (s) => orderAt(s[0][2] / N));
   // what the map means: PC1 / PC2 of the paragraph embeddings, and the colour key
   const muted = css("--ink-3"), fmt = d3.format(".2f");
-  svg.append("text").attr("x", (sx(x0) + sx(x1)) / 2).attr("y", Math.min(H - 6, sy(y0) + 16)).attr("text-anchor", "middle")
+  const ax = svg.append("g").attr("class", "axes").style("display", S.axes ? null : "none");
+  ax.append("text").attr("x", (sx(x0) + sx(x1)) / 2).attr("y", Math.min(H - 6, sy(y0) + 16)).attr("text-anchor", "middle")
     .attr("fill", muted).attr("font-size", 12).text("PC1");
-  svg.append("text").attr("transform", `translate(${Math.max(12, sx(x0) - 8)},${(sy(y0) + sy(y1)) / 2}) rotate(-90)`)
+  ax.append("text").attr("transform", `translate(${Math.max(12, sx(x0) - 8)},${(sy(y0) + sy(y1)) / 2}) rotate(-90)`)
     .attr("text-anchor", "middle").attr("fill", muted).attr("font-size", 12).text("PC2");
-  const key = svg.append("g").attr("transform", `translate(${W - m - R.length * 14 - 4},${H - 30})`);
+  const key = ax.append("g").attr("transform", `translate(${W - m - R.length * 14 - 4},${H - 30})`);
   key.selectAll("rect").data(R).join("rect").attr("x", (c, j) => j * 14).attr("width", 14).attr("height", 8).attr("fill", (c) => c);
   key.append("text").attr("x", -6).attr("y", 8).attr("text-anchor", "end").attr("fill", muted).attr("font-size", 11).text(fmt(lo));
   key.append("text").attr("x", R.length * 14 + 6).attr("y", 8).attr("fill", muted).attr("font-size", 11).text(fmt(hi));
@@ -124,6 +131,7 @@ function draw3d() {
   scene3.group.add(axes3d(scene3, b.extent, {
     height: RELIEF, title: S.emotion,
     ticks: [lo, (lo + hi) / 2, hi].map((v) => [h(v), fmt(v)]) }));
+  showAxes(scene3.group, S.axes);
   arc3 = denseArc(b.arc).map(([x, y, c]) => {
     const v = sample(f, b.n, b.extent, x, y);
     return [F.X(x), h(Number.isFinite(v) ? v : lo) + 0.006, F.Z(y), c];

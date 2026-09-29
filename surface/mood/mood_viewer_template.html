@@ -19,7 +19,7 @@ main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); min-
 __HEAD_LIBS__
 </head>
 <body>
-<header><select id="book"></select></header>
+<header><select id="book"></select><button class="toggle" id="axes" aria-pressed="true">axes</button></header>
 <main>
   <div class="stage" id="stage"></div>
   <div class="read"><div class="chapter" id="chapter"></div><div class="mood" id="mood"></div><div class="text" id="text"></div></div>
@@ -30,13 +30,17 @@ __VIEWER_JS__
 
 const DATA = __DATA__;
 const H = 0.8;   // world height of mood = 1 (humor); mood = 0 is sadness
-const S = { book: Object.keys(DATA.books)[0], i: 0 };
+const S = { book: Object.keys(DATA.books)[0], i: 0, axes: true };
 const book = () => DATA.books[S.book];
 // the colour of a mood value: the emotions' colours at their spectrum positions, blended
 const moodColor = () => d3.scaleLinear(book().positions, book().colors).interpolate(d3.interpolateLab).clamp(true);
 for (const [k, b] of Object.entries(DATA.books)) $("book").add(new Option(b.title, k));
 if (Object.keys(DATA.books).length < 2) $("book").style.display = "none";
 $("book").onchange = (e) => { S.book = e.target.value; S.i = 0; draw(); };
+$("axes").onclick = () => {
+  S.axes = !S.axes; $("axes").setAttribute("aria-pressed", S.axes);
+  showAxes(scene.group, S.axes); scene.request();
+};
 
 const scene = Scene($("stage"));
 scene.controls.target.set(0, 0.3, 0);
@@ -52,12 +56,15 @@ function draw() {
   scene.group.add(axes3d(scene, b.extent));   // PC1 / PC2 on the floor
   // the emotion axis, standing just left of the terrain as the starting camera sees
   // it: the spectrum, sadness at the bottom
-  const corner = axisFoot(scene);
-  scene.group.add(curve([[corner[0], 0, corner[2]], [corner[0], H, corner[2]]], 0.0025, css("--arc")));
+  const corner = axisFoot(scene), emotionAxis = new THREE.Group();
+  emotionAxis.userData.axes = true;
+  scene.group.add(emotionAxis);
+  emotionAxis.add(curve([[corner[0], 0, corner[2]], [corner[0], H, corner[2]]], 0.0025, css("--arc")));
   b.order.forEach((name, j) => {
     const y = b.positions[j] * H;
-    scene.group.add(label(name, [corner[0], y, corner[2]], { dot: b.colors[j] }));
+    emotionAxis.add(label(name, [corner[0], y, corner[2]], { dot: b.colors[j] }));
   });
+  showAxes(scene.group, S.axes);
   // the arc on the surface
   arc = denseArc(b.arc).map(([x, y, c]) => {
     const v = sample(f, b.n, b.extent, x, y);
