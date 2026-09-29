@@ -36,7 +36,7 @@ closed-surface/   global fit #2: screened Poisson reconstruction (watertight sol
 mood_surface/     six emotions -> one mood height; the arc as geodesics on it
 narrative-arc/    the arc itself: 2-D/3-D paths, B-spline fit, tube, explorers
 site/             a pipeline reference page generated from the code
-docs/figures/     selected projection and sweep figures, with captions
+docs/figures/     selected projection, sweep and arc (B-spline) figures
 ```
 
 Each of `geometry/`, `b-surface/`, `closed-surface/`, `mood_surface/` and
@@ -159,7 +159,8 @@ stepping by 20, over the book and mean-pool each window. That gives 39 windows
 for Alice, 44 for Hamlet and 104 for Pride and Prejudice. Consecutive windows
 share half their text, so a window is a scene rather than a remark.
 
-- **`narrative-arc/`**: the arc as a curve. 2-D and 3-D paths under PCA, UMAP
+- **`narrative-arc/`**: the arc as a curve (figures in
+  [docs/figures](docs/figures/README.md#4-the-2-d-arc-and-its-b-spline-fit)). 2-D and 3-D paths under PCA, UMAP
   and t-SNE; a uniform B-spline fitted through the windows; the **narrative
   tube** (a cross-section per window, swept along the curve with
   rotation-minimizing frames); parameter sweeps; and two self-contained HTML
