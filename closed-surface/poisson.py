@@ -1,7 +1,8 @@
 """Screened Poisson reconstruction of a closed emotion landscape.
 
 Every other fit in this repo (`b-surface`, the kernel smoothers) recovers a
-*height field*: one z per (x, y), an open sheet hanging over the PCA plane. Poisson reconstruction cannot do that and does not try. It
+*height field*: one z per (x, y), an open sheet hanging over the PCA plane.
+Poisson reconstruction cannot do that and does not try. It
 takes oriented points -- a position and an outward normal -- and returns the
 boundary of the solid those normals bound: watertight, closed, two-sided. So the
 object here is not `z = f(x, y)`. It is the *solid under the landscape*,
