@@ -1,32 +1,18 @@
 """Fit one Gaussian surface to the paragraphs' (x, y, mood) points.
 
-Self-contained: a small Nadaraya-Watson smoother with a Gaussian kernel, one
-bandwidth per axis, in standardized coordinates.
+Gaussian Nadaraya-Watson (geometry.smoothers.gaussian_nw) with one bandwidth
+for both axes, in standardized coordinates.
 """
 
 import numpy as np
+
+from geometry.smoothers import gaussian_nw
 
 
 def _standardize(a):
     a = np.asarray(a, dtype=float)
     mean, std = a.mean(0), a.std(0)
     return mean, np.where(std > 1e-12, std, 1.0)
-
-
-def _gaussian_nw(X, y, Q, h):
-    """Weighted average of y over X, Gaussian-weighted by distance to Q.
-
-    Returns (values, support); support is the summed weight per query point.
-    """
-    values = np.empty(len(Q))
-    support = np.empty(len(Q))
-    for i in range(0, len(Q), 512):
-        d2 = ((Q[i:i + 512, None, :] - X[None, :, :]) ** 2).sum(-1) / (h * h)
-        w = np.exp(-0.5 * d2)
-        wsum = w.sum(1)
-        values[i:i + 512] = (w @ y) / np.where(wsum > 0, wsum, 1.0)
-        support[i:i + 512] = wsum
-    return values, support
 
 
 def fit(coords, values, h=0.2, resolution=120, margin=0.05, mask_floor=None):
@@ -47,9 +33,9 @@ def fit(coords, values, h=0.2, resolution=120, margin=0.05, mask_floor=None):
                          np.linspace(lo[1] - pad[1], hi[1] + pad[1], resolution))
     Q = np.column_stack([gx.ravel(), gy.ravel()])
 
-    vals, support = _gaussian_nw(Xn, yn, Q, h)
+    vals, support = gaussian_nw(Xn, yn, Q, h, h)
     if mask_floor is not None and mask_floor >= 0:
-        _, at_points = _gaussian_nw(Xn, yn, Xn, h)
+        _, at_points = gaussian_nw(Xn, yn, Xn, h, h)
         vals = np.where(support >= np.percentile(at_points, mask_floor),
                         vals, np.nan)
 
@@ -59,7 +45,7 @@ def fit(coords, values, h=0.2, resolution=120, margin=0.05, mask_floor=None):
 
     def height_at(points):
         pn = (np.asarray(points, dtype=float) - xm) / xs
-        v, _ = _gaussian_nw(Xn, yn, pn, h)
+        v, _ = gaussian_nw(Xn, yn, pn, h, h)
         return np.clip(v * ys + ym, 0.0, 1.0)
 
     return GX, GY, Z, height_at

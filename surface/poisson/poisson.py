@@ -99,16 +99,6 @@ def upward_normals(grad, relief):
 
 # ------------------------------------------------------------ support region
 
-def plane_grid(X, resolution, pad=0.03):
-  """The plotting grid over the PCA rectangle: `gx, gy`, padded past the data."""
-  X = np.asarray(X, float)
-  lo, hi = X.min(axis=0), X.max(axis=0)
-  span = hi - lo
-  lo, hi = lo - pad * span, hi + pad * span
-  return np.meshgrid(np.linspace(lo[0], hi[0], resolution),
-                     np.linspace(lo[1], hi[1], resolution))
-
-
 def support_grid(X, radius, resolution, pad=0.03):
   """A boolean grid: True where some paragraph is within `radius`.
 

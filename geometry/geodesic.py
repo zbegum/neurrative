@@ -21,12 +21,13 @@ from scipy.sparse.csgraph import connected_components
 from geometry._geodesic_native import exact_geodesic_paths
 
 
-def edge_flip_paths(vertices, faces, pairs, graph=None):
+def exact_paths(vertices, faces, pairs, graph=None):
   """Exact geodesic paths (Kirsanov / MMP), one per (source, target) pair.
 
   Returns a list of (m, 3) polylines running from source to target, or None
-  where no path exists. The name is kept for its callers; the solver underneath
-  is now the exact C++ implementation in geodesic_cpp/, not edge flipping.
+  where no path exists. The solver is the exact C++ implementation in
+  geodesic_cpp/: a path may cross a triangle's interior at any angle, rather
+  than being restricted to the mesh's edges.
 
   On a flat surface an exact geodesic is an actually straight line, which is the
   control the edge-restricted Dijkstra path fails.

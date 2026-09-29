@@ -15,7 +15,7 @@ while not os.path.isdir(os.path.join(_ROOT, "common")):
 sys.path[1:1] = [_ROOT, os.path.join(_ROOT, "common")]
 
 from geometry import mesh as gmesh
-from geometry.geodesic import edge_flip_paths
+from geometry.geodesic import exact_paths
 
 
 def route(GX, GY, Z, waypoints, reading_pos, alpha=6.0, snap_tol=1.0):
@@ -33,7 +33,7 @@ def route(GX, GY, Z, waypoints, reading_pos, alpha=6.0, snap_tol=1.0):
     feet, dist = gmesh.snap(waypoints, verts)
     ok = dist <= snap_tol * cell
     pairs = [i for i in range(len(feet) - 1) if ok[i] and ok[i + 1]]
-    solved = dict(zip(pairs, edge_flip_paths(
+    solved = dict(zip(pairs, exact_paths(
         verts, faces, [(int(feet[i]), int(feet[i + 1])) for i in pairs],
         graph=graph)))
 

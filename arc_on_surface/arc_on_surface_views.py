@@ -57,7 +57,7 @@ from smooth_common import load_pca
 from arc_on_surface import (build_surface, resample, support_at, surface_at,
                             window_bounds, window_points)
 from geometry import mesh as gmesh
-from geometry.geodesic import edge_flip_paths
+from geometry.geodesic import exact_paths
 
 CMAP = "magma"
 ROUTE = "#d1495b"
@@ -84,7 +84,7 @@ def geodesic_legs(GX, GY, Z, waypoints, alpha, snap_tol):
   feet, dist = gmesh.snap(waypoints, vertices)
   ok = dist <= snap_tol
   idx = [i for i in range(len(feet) - 1) if ok[i] and ok[i + 1]]
-  solved = edge_flip_paths(vertices, faces,
+  solved = exact_paths(vertices, faces,
                            [(int(feet[i]), int(feet[i + 1])) for i in idx],
                            graph=graph)
 
@@ -243,7 +243,7 @@ def main():
   paths.stamp(out_dir, __file__, args, stack="geometry.smoothers",
               estimator="gaussian_nw (anisotropic hx, hy; standardized coords)",
               route="lift of the 2-D arc (not a geodesic)",
-              geodesic="geometry.geodesic.edge_flip_paths (exact MMP), per leg")
+              geodesic="geometry.geodesic.exact_paths (exact MMP), per leg")
   print(f"  -> {out_dir}")
 
 

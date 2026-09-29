@@ -44,7 +44,7 @@ sys.path[1:1] = [_ROOT, os.path.join(_ROOT, "common")]
 
 import paths as out_paths
 from smooth_common import Standardizer, add_common_args, fit_grid, prepare
-from geometry.geodesic import (edge_flip_paths, polyline_deviation,
+from geometry.geodesic import (exact_paths, polyline_deviation,
                                polyline_length, rising_pairs)
 from geometry.mesh import edge_graph, height_mesh, snap
 from geometry.smoothers import gaussian_nw
@@ -78,7 +78,7 @@ def geodesics(GX, GY, Z, mask, X_raw, idx, alpha):
   feet, snap_dist = snap(X_raw, vertices)
 
   pairs = [(int(feet[i]), int(feet[i + 1])) for i in idx]
-  paths = edge_flip_paths(vertices, faces, pairs, graph=graph)
+  paths = exact_paths(vertices, faces, pairs, graph=graph)
   return vertices, faces, paths, snap_dist
 
 

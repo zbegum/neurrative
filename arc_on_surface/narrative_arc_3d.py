@@ -80,7 +80,7 @@ from geometry.scalar_field import (
   bandwidth_candidates, loo_bandwidth, nadaraya_watson,
 )
 from geometry.smoothers import SMOOTHERS, gaussian_nw
-from geometry.geodesic import edge_flip_paths
+from geometry.geodesic import exact_paths
 from geometry.mesh import edge_graph, height_mesh, snap
 from smooth_common import Standardizer, fit_grid, tune
 from surface.mood.mood import SPECTRUM
@@ -427,7 +427,7 @@ def reading_order_geodesics(GX, GY, Z, mask, coords, alpha):
   graph = edge_graph(vertices, faces)
   feet, _ = snap(coords, vertices)
   pairs = [(int(feet[i]), int(feet[i + 1])) for i in range(len(coords) - 1)]
-  return edge_flip_paths(vertices, faces, pairs, graph=graph)
+  return exact_paths(vertices, faces, pairs, graph=graph)
 
 
 def draw_geodesic_facet(ax, GX, GY, Z, paths, coords, height, alpha):

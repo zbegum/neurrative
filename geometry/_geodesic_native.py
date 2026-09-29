@@ -4,9 +4,9 @@ geodesic_cpp/). The shared library is built from wrapper.cpp on first import and
 cached next to it; thereafter import is just a dlopen. Only a C++ compiler is
 required -- no pip package, no build step for the user to run.
 
-The one public function, exact_geodesic_paths, is a drop-in for the old
-edge-flip solver: same (vertices, faces, pairs) in, same list of (m, 3)
-polylines (or None) out.
+The one public function, exact_geodesic_paths, is what
+geometry.geodesic.exact_paths calls: (vertices, faces, pairs) in, a list of
+(m, 3) polylines (or None) out.
 """
 
 import ctypes

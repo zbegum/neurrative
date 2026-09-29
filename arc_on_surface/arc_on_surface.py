@@ -85,7 +85,7 @@ from windows import window_bounds
 from smooth_common import Standardizer, load_pca, fit_grid
 from geometry.smoothers import gaussian_nw
 from geometry import mesh as gmesh
-from geometry.geodesic import edge_flip_paths, polyline_length
+from geometry.geodesic import exact_paths, polyline_length
 
 CMAP = "magma"
 UNSUPPORTED = "0.55"
@@ -156,7 +156,7 @@ def geodesic_route(GX, GY, Z, waypoints, alpha, snap_tol, t_of_waypoint=None):
   feet, dist = gmesh.snap(waypoints, vertices)
   ok = dist <= snap_tol
   pairs_idx = [i for i in range(len(feet) - 1) if ok[i] and ok[i + 1]]
-  solved = edge_flip_paths(vertices, faces,
+  solved = exact_paths(vertices, faces,
                            [(int(feet[i]), int(feet[i + 1])) for i in pairs_idx],
                            graph=graph)
   legs = dict(zip(pairs_idx, solved))
@@ -371,7 +371,7 @@ def route_metrics(curve_xy, z, t, waypoints, GX, GY, Z, alpha, snap_tol,
   # Waypoint i -> i+1, the story's own steps, where both feet are trustworthy.
   idx = [i for i in range(len(feet) - 1) if on_surface[i] and on_surface[i + 1]]
   pairs = [(int(feet[i]), int(feet[i + 1])) for i in idx]
-  legs = edge_flip_paths(vertices, faces, pairs, graph=graph)
+  legs = exact_paths(vertices, faces, pairs, graph=graph)
 
   geo_total, route_total, ratios, solved, unsupported = 0.0, 0.0, [], 0, 0
   for i, leg in zip(idx, legs):
@@ -407,7 +407,7 @@ def route_metrics(curve_xy, z, t, waypoints, GX, GY, Z, alpha, snap_tol,
   out["leg_ratio_p90"] = float(np.percentile(ratios, 90)) if ratios else None
 
   # Context only -- see the docstring.
-  ends = (edge_flip_paths(vertices, faces, [(int(feet[0]), int(feet[-1]))],
+  ends = (exact_paths(vertices, faces, [(int(feet[0]), int(feet[-1]))],
                           graph=graph)[0]
           if on_surface[0] and on_surface[-1] else None)
   out["endpoint_geodesic_length"] = (float(polyline_length(ends))
@@ -632,7 +632,7 @@ def main():
   paths.stamp(out_dir, __file__, args, stack="geometry.smoothers",
               estimator="gaussian_nw (anisotropic hx, hy; standardized coords)",
               curve="lift of the 2-D arc: z = Surface(arc_x, arc_y)",
-              geodesic="geometry.geodesic.edge_flip_paths (exact MMP)",
+              geodesic="geometry.geodesic.exact_paths (exact MMP)",
               n_curve_points=int(len(dense_xy)), emotions=selected)
 
   # --- figure 1: the lifted arc on each terrain, with its geodesic -------------

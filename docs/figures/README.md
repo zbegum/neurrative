@@ -2,9 +2,9 @@
 
 A curated set of the projection, sweep and narrative-arc figures, committed so
 they can be read on GitHub without running anything. Every one is regenerated
-by the command under it into `output/` (or `arc/output/`), along with
-the same figure for every other book × model. Numbers are for `bge-m3` unless
-noted.
+by the command under it, into the `output/` folder of the step that makes it
+(`projection/output/`, `arc/output/`, ...), along with the same figure for every
+other book × model. Numbers are for `bge-m3` unless noted.
 
 ## 1. PCA vs UMAP vs t-SNE (paragraph level)
 
