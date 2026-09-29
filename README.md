@@ -23,7 +23,8 @@ their shape says about the story:
   the landscape and thickened into a tube.
 
 The goal is interpretability and visualization, not a predictive model.
-Selected results, with numbers, are in **[docs/figures](docs/figures/README.md)**.
+Selected results, with numbers, are in **[docs/figures](docs/figures/README.md)**;
+interactive pages to explore them are in **[docs/interactive](docs/interactive/README.md)**.
 
 ## Repository layout
 
@@ -52,6 +53,7 @@ arc/                step 3  the narrative arc
 arc_on_surface/     step 4  the arc lifted onto the landscape, and geodesics
 
 docs/figures/       curated figures with captions
+docs/interactive/   four interactive HTML pages (the arc and tube explorers, ...)
 site/               a pipeline reference page generated from the code
 ```
 
