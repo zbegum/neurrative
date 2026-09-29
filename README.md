@@ -71,30 +71,29 @@ Every script can be run from anywhere; each one puts the repository root and
 
 ## Running the pipeline
 
-Each step reads what the one before it wrote. For one book and model:
+Each step reads what the one before it wrote. For one book and model
+(swap in any book and model from the table below):
 
 ```bash
-B="--book alice_wonderland --model bge-m3"
-
 # step 1: the plane (PCA is what every surface is fitted over)
-python projection/embedding.py $B
-python projection/chain_umap.py $B            # needed by surface/mood by default
+python projection/embedding.py --book alice_wonderland --model bge-m3
+python projection/chain_umap.py --book alice_wonderland --model bge-m3  # needed by surface/mood by default
 
 # step 2: surfaces, any subset
-python surface/points/raw_points.py $B
-python surface/kernel/gaussian.py $B          # or epanechnikov / local_linear / loess / loo
-python surface/bspline/fit_surface.py $B --grid
-python surface/poisson/fit_surface.py $B --open
-python surface/mood/run.py $B --figure surface
+python surface/points/raw_points.py --book alice_wonderland --model bge-m3
+python surface/kernel/gaussian.py --book alice_wonderland --model bge-m3  # or epanechnikov / local_linear / loess / loo
+python surface/bspline/fit_surface.py --book alice_wonderland --model bge-m3 --grid
+python surface/poisson/fit_surface.py --book alice_wonderland --model bge-m3 --open
+python surface/mood/run.py --book alice_wonderland --model bge-m3 --figure surface
 
 # step 3: the arc
-python common/windows.py $B                   # the windowed series
-python arc/curve/arc_2d.py $B --fit
-python arc/validation/arc_comparison.py $B
+python common/windows.py --book alice_wonderland --model bge-m3  # the windowed series
+python arc/curve/arc_2d.py --book alice_wonderland --model bge-m3 --fit
+python arc/validation/arc_comparison.py --book alice_wonderland --model bge-m3
 
 # step 4: the arc on the landscape
-python arc_on_surface/arc_on_surface.py $B
-python arc_on_surface/geodesic_arrows.py $B
+python arc_on_surface/arc_on_surface.py --book alice_wonderland --model bge-m3
+python arc_on_surface/geodesic_arrows.py --book alice_wonderland --model bge-m3
 ```
 
 The READMEs in each folder list every script and its options.
