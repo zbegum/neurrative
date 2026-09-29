@@ -24,7 +24,8 @@ COMMON = os.path.join(ROOT, "common")
 # Every folder that holds runnable scripts, in pipeline order.
 SCRIPT_DIRS = ["preprocess", "common", "projection", "surface/points",
                "surface/kernel", "surface/bspline", "surface/poisson",
-               "surface/mood", "arc/validation", "arc_on_surface"]
+               "surface/mood", "arc/curve", "arc/tube", "arc/sweeps",
+               "arc/validation", "arc_on_surface"]
 
 # The book and model everything below is reported for.
 BOOK, MODEL = "alice_wonderland", "bge-m3"
@@ -178,7 +179,8 @@ FLOW = [
    "raw scores over the PCA plane → z = f(PC1, PC2), one folder per method "
    "under surface/"),
   ("arc", "Trace the arc",
-   ["common/windows.py"],
+   ["common/windows.py", "arc/curve/arc_2d.py", "arc/curve/arc_3d.py",
+    "arc/tube/arc_tube.py"],
    "sliding window over reading order → the windowed series; drawn, fitted "
    "and swept into a tube by arc/"),
   ("validate", "Validate the arc",

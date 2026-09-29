@@ -60,8 +60,8 @@ from 0.91 to 0.81. There is no principled `beta`; the curve is the result.
 
 ## 3. The narrative arc under different projections and windows
 
-`cd arc && python sweep.py --all-books --all-models`, and
-`python grid_3d.py --all-books --all-models`
+`cd arc && python sweeps/sweep.py --all-books --all-models`, and
+`python sweeps/grid_3d.py --all-books --all-models`
 
 **Projection parameters** (window 20, stride 10: 78 windows). t-SNE perplexity
 5–40 and UMAP `n_neighbors` 5–40, with how far the layout moves between seeds
@@ -90,7 +90,7 @@ seems to cross itself in one flat view can be checked against the other two.
 
 ## 4. The 2-D arc and its B-spline fit
 
-`cd arc && python arc_2d.py --all-books --all-models --fit --show-control`
+`cd arc && python curve/arc_2d.py --all-books --all-models --fit --show-control`
 (and `arc_3d.py` with the same flags)
 
 Windows of 40 paragraphs stepping by 20, joined in reading order: **O** is the

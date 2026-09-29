@@ -1,7 +1,7 @@
 """
 The narrative arc lifted into 3-D: emotion is the height.
 
-The 2-D arc (arc/arc_2d.py) draws the sliding-window path on a flat
+The 2-D arc (arc/curve/arc_2d.py) draws the sliding-window path on a flat
 projection, where x and y are arbitrary UMAP/t-SNE (or PCA) coordinates with no
 units. Here the third axis carries a real, metric quantity so the story becomes
 a curve rising and falling over the semantic map. What that quantity is is up

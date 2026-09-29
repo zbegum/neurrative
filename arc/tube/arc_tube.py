@@ -25,16 +25,20 @@ Outputs, under <output-dir>/<book>/<model>/arc_tube/<pca|umap|tsne>/:
 
 Examples:
 
-python arc_tube.py
-python arc_tube.py --section emotions --normalize --round 36
-python arc_tube.py --section spread --sides 16 --color progression
-python arc_tube.py --data-dir ../neurrative/books --book hamlet --section spread
+python tube/arc_tube.py
+python tube/arc_tube.py --section emotions --normalize --round 36
+python tube/arc_tube.py --section spread --sides 16 --color progression
+python tube/arc_tube.py --book hamlet --section spread
 """
 
 import argparse
 import os
+import sys
 
 import numpy as np
+
+# arc/ on the path, for the narrative_arc package one level up.
+sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from narrative_arc import cli, paths
 from narrative_arc import tube as TB

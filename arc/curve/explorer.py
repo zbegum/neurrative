@@ -23,13 +23,14 @@ x window x stride.
 
 Examples:
 
-python explorer.py                                   # the sample book
-python explorer.py --data-dir ../neurrative/books    # every book and model there
+python curve/explorer.py                                   # the sample book
+python curve/explorer.py    # every book and model there
 """
 
 import argparse
 import json
 import os
+import sys
 import warnings
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
@@ -43,25 +44,18 @@ for _var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
 import numpy as np
 from sklearn.manifold import trustworthiness
 
+# arc/ on the path, for the narrative_arc package one level up.
+sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from narrative_arc import paths
 from narrative_arc.curves import FitOpts, fit_curve
-from narrative_arc.data import (EMOTION_STYLE, UNCLEAR_STYLE, dominant, list_books,
-                                list_models, load_book, load_embeddings,
-                                load_scores)
+from narrative_arc.data import list_books, list_models, load_book, load_embeddings
+from narrative_arc.explorer_data import (STRIDE_FRACTIONS, WINDOW_SIZES,
+                                        book_record, rounded, stride_for)
 from narrative_arc.projections import METHODS, project
-from narrative_arc.windows import pool, window_bounds, window_centers
+from narrative_arc.windows import pool, window_bounds
 
-WINDOW_SIZES = (10, 20, 40, 80)
-STRIDE_FRACTIONS = {"quarter": 0.25, "half": 0.5, "full": 1.0}
-SNIPPET_CHARS = 240
 TEMPLATE = os.path.join(paths.ROOT, "narrative_arc", "explorer_template.html")
-
-BOOK_TITLES = {
-  "alice_wonderland": "Alice's Adventures in Wonderland",
-  "hamlet": "Hamlet",
-  "pride_and_prejudice": "Pride and Prejudice",
-}
-
 
 def fit_presets(n):
   return {
@@ -69,77 +63,6 @@ def fit_presets(n):
     "tight": FitOpts(int(np.clip(n // 2, 8, 40)), 3, 0.01, "dn", 300),
   }
 
-
-def rounded(a):
-  """Flat list at 4 significant figures relative to the array's scale -- the
-  page only draws these, so more digits are just bytes."""
-  a = np.asarray(a, dtype=float)
-  scale = np.abs(a).max() or 1.0
-  decimals = int(max(0, 3 - np.floor(np.log10(scale))))
-  return np.round(a, decimals).ravel().tolist()
-
-
-def chapter_label(chapter):
-  title = (chapter.get("title") or "").strip()
-  number = chapter.get("chapter_number")
-  if title and not title.startswith("["):
-    if number and not title.upper().startswith(("ACT", "CHAPTER", "SCENE")):
-      return f"{number}. {title}"
-    return title
-  return f"Chapter {number}" if number else f"Chapter {chapter['chapter_id'] + 1}"
-
-
-def stride_for(size, fraction):
-  return max(1, int(round(size * fraction)))
-
-
-# --------------------------------------------------------------------------
-# per book: everything that does not depend on the model
-# --------------------------------------------------------------------------
-
-def book_record(data_dir, book):
-  paragraphs, chapters = load_book(data_dir, book)
-  n = len(paragraphs)
-  try:
-    emotions, matrix = load_scores(data_dir, book, paragraphs)
-  except FileNotFoundError:
-    emotions, matrix = [], None
-
-  chapter_titles = {c["chapter_id"]: chapter_label(c) for c in chapters}
-  windows, used = {}, set()
-  for size in WINDOW_SIZES:
-    for name, fraction in STRIDE_FRACTIONS.items():
-      stride = stride_for(size, fraction)
-      bounds = window_bounds(n, size, stride)
-      mid = window_centers(bounds).round().astype(int)
-      used.update(mid.tolist())
-      record = {
-        "starts": [s for s, _ in bounds],
-        "stops": [e for _, e in bounds],
-        "mid": mid.tolist(),
-        "chapter": [paragraphs[i]["chapter_id"] for i in mid],
-      }
-      if matrix is not None:
-        codes, _, _ = dominant(emotions, pool(matrix, bounds), min_score=0.2)
-        record["dominant"] = codes.tolist()
-      windows[f"{size}:{name}"] = record
-
-  def snippet(text):
-    text = " ".join(text.split())
-    if len(text) > SNIPPET_CHARS:
-      text = text[:SNIPPET_CHARS].rsplit(" ", 1)[0] + " …"
-    return text
-
-  return {
-    "title": BOOK_TITLES.get(book, book.replace("_", " ").title()),
-    "paragraphs": n,
-    "chapters": {str(k): v for k, v in chapter_titles.items()},
-    "emotions": [
-      {"name": e, "color": EMOTION_STYLE[e][0]} for e in emotions
-    ] + ([{"name": "unclear", "color": UNCLEAR_STYLE[0]}] if emotions else []),
-    "windows": windows,
-    "text": {str(i): snippet(paragraphs[i]["text"]) for i in sorted(used)},
-  }
 
 
 # --------------------------------------------------------------------------

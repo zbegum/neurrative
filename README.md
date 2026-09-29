@@ -43,8 +43,12 @@ surface/            step 2  the emotion landscape, one folder per fitting method
   bspline/            least-squares tensor-product B-spline
   poisson/            screened Poisson reconstruction (a watertight solid)
   mood/               six emotions -> one mood height, and the arc on it
-arc/                step 3  the narrative arc: 2-D/3-D paths, B-spline fit, tube,
-  validation/         explorers, sweeps; and is the arc real?
+arc/                step 3  the narrative arc
+  curve/              2-D / 3-D paths, the B-spline fit, the explorer
+  tube/               the narrative tube and its explorer
+  sweeps/             window / fit / projection / model sweeps
+  validation/         is the arc real?
+  narrative_arc/      the library the arc scripts share
 arc_on_surface/     step 4  the arc lifted onto the landscape, and geodesics
 
 docs/figures/       curated figures with captions
@@ -85,7 +89,7 @@ python surface/mood/run.py $B --figure surface
 
 # step 3: the arc
 python common/windows.py $B                   # the windowed series
-cd arc && python arc_2d.py $B --fit && cd ..
+python arc/curve/arc_2d.py $B --fit
 python arc/validation/arc_comparison.py $B
 
 # step 4: the arc on the landscape

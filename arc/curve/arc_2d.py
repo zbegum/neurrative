@@ -24,16 +24,20 @@ Outputs, under <output-dir>/<book>/<model>/:
 
 Examples:
 
-python arc_2d.py
-python arc_2d.py --book alice_wonderland --model bge-m3 \
+python curve/arc_2d.py
+python curve/arc_2d.py --book alice_wonderland --model bge-m3 \
   --size 15 --stride 3 --color progression chapter dominant
-python arc_2d.py --fit --n-control 10 --lambda 0.1 --show-control
+python curve/arc_2d.py --fit --n-control 10 --lambda 0.1 --show-control
 """
 
 import argparse
 import os
+import sys
 
 import numpy as np
+
+# arc/ on the path, for the narrative_arc package one level up.
+sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from narrative_arc import cli, paths
 from narrative_arc import windows as W

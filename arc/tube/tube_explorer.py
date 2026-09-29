@@ -24,13 +24,14 @@ arc_tube.py's periodic cubic spline; both pass through the same vertex radii.)
 
 Examples:
 
-python tube_explorer.py                                  # the sample book
-python tube_explorer.py --data-dir ../neurrative/books   # every book and model
+python tube/tube_explorer.py                                  # the sample book
+python tube/tube_explorer.py   # every book and model
 """
 
 import argparse
 import json
 import os
+import sys
 import warnings
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
@@ -40,9 +41,12 @@ for _var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
 
 import numpy as np
 
-from explorer import (STRIDE_FRACTIONS, WINDOW_SIZES, book_record, rounded,
-                      stride_for)
+# arc/ on the path, for the narrative_arc package one level up.
+sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from narrative_arc import paths
+from narrative_arc.explorer_data import (STRIDE_FRACTIONS, WINDOW_SIZES,
+                                        book_record, rounded, stride_for)
 from narrative_arc import tube as TB
 from narrative_arc.curves import FitOpts, fit_curve
 from narrative_arc.data import (list_books, list_models, load_book,

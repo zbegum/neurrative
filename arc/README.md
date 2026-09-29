@@ -10,6 +10,18 @@ loops and drifts in between (arrows show direction).
 
 ![2-D narrative arc of Alice in Wonderland, PCA / UMAP / t-SNE](docs/arc_2d_grid.png)
 
+## Folders
+
+| folder | what | scripts |
+|---|---|---|
+| `curve/` | the arc as a curve: 2-D and 3-D paths under PCA / UMAP / t-SNE, the fitted B-spline, and its interactive explorer | `arc_2d.py`, `arc_3d.py`, `explorer.py` |
+| `tube/` | the narrative tube: a cross-section per window swept along the fitted curve, and its interactive explorer | `arc_tube.py`, `tube_explorer.py` |
+| `sweeps/` | how the picture changes with window, fit, projection settings and embedding model; the 3-D arc with its flat views | `sweep.py`, `grid_3d.py` |
+| `validation/` | is the arc real? against the raw per-paragraph path and a shuffled reading order | `arc_comparison.py`, `arc_comparison_projections.py` |
+| `narrative_arc/` | the library every script above uses (windows, projections, curve fitting, tube, plotting) | — |
+
+Results go to `arc/output/<book>/<model>/`.
+
 ## Method
 
 1. **Windowing.** Row *i* of `embeddings.npy` is paragraph *i*, so window *k* is
@@ -89,27 +101,27 @@ are available for it.
 
 ```bash
 # 2-D: PCA, UMAP, t-SNE, colored by reading order and chapter
-python arc_2d.py
+python curve/arc_2d.py
 
 # 3-D: static PNGs + rotatable HTML
-python arc_3d.py
+python curve/arc_3d.py
 
 # more coloring, and a fitted B-spline with its control polygon
-python arc_2d.py --color progression chapter dominant --fit
-python arc_3d.py --color progression dominant emotions --fit --show-control
+python curve/arc_2d.py --color progression chapter dominant --fit
+python curve/arc_3d.py --color progression dominant emotions --fit --show-control
 
 # a looser or tighter curve
-python arc_3d.py --fit --n-control 8 --lambda 1.0
-python arc_3d.py --fit --n-control 16 --lambda 0.01 --solver lm
+python curve/arc_3d.py --fit --n-control 8 --lambda 1.0
+python curve/arc_3d.py --fit --n-control 16 --lambda 0.01 --solver lm
 
 # finer windows, one projection, a different camera angle
-python arc_3d.py --size 15 --stride 3 --methods pca --elev 30 --azim 45
+python curve/arc_3d.py --size 15 --stride 3 --methods pca --elev 30 --azim 45
 
 # every book x model in another data directory
-python arc_2d.py --data-dir /path/to/books --all-books --all-models
+python curve/arc_2d.py --data-dir /path/to/books --all-books --all-models
 
 # only the pooled series, no figures
-python build_windows.py
+python ../common/windows.py --all-books --all-models
 ```
 
 Hover a window in the HTML to see its paragraph range, chapter and the opening of
@@ -118,10 +130,10 @@ its middle paragraph, so any point on the arc can be read back as text.
 ### Narrative tube
 
 ```bash
-python arc_tube.py                               # emotion sections, PCA
-python arc_tube.py --normalize --round 36        # each emotion's own range, rounded sections
-python arc_tube.py --section spread --sides 16   # paragraph scatter around the curve
-python arc_tube.py --methods pca umap tsne
+python tube/arc_tube.py                               # emotion sections, PCA
+python tube/arc_tube.py --normalize --round 36        # each emotion's own range, rounded sections
+python tube/arc_tube.py --section spread --sides 16   # paragraph scatter around the curve
+python tube/arc_tube.py --methods pca umap tsne
 ```
 
 The arc thickened into a tube: every window gets a polygon cross-section, and
@@ -150,7 +162,7 @@ Construction (`narrative_arc/tube.py`):
    locally. Thickness therefore stays comparable along the story. Each run
    prints both the factor and the narrowed fraction.
 
-**Interactive:** `python tube_explorer.py` writes `output/tube_explorer.html`.
+**Interactive:** `python tube/tube_explorer.py` writes `output/tube_explorer.html`.
 - Dropdowns: book, model, projection, window, step, cross-section, surface color.
 - Live controls: thickness, smoothing, rounded sections.
 - A reading-position slider highlights one window's section and shows its text.
@@ -161,8 +173,8 @@ itself is rebuilt in the page, so the sliders respond instantly.
 ### 3-D grid with flat views
 
 ```bash
-python grid_3d.py                       # rows: windows 10/20/40/80; PCA and UMAP
-python grid_3d.py --methods pca tsne
+python sweeps/grid_3d.py                       # rows: windows 10/20/40/80; PCA and UMAP
+python sweeps/grid_3d.py --methods pca tsne
 ```
 
 One figure: each row is a window size; for each method, the 3-D arc followed by
@@ -172,9 +184,9 @@ the same points seen along each axis (1-2, 1-3, 2-3). Written to
 ### Parameter sweeps
 
 ```bash
-python sweep.py                                   # windows, fit, projections, models
-python sweep.py --sweeps windows --windows 10:5 25:5 40:20 100:50
-python sweep.py --data-dir /path/to/books --book hamlet --sweeps windows models
+python sweeps/sweep.py                                   # windows, fit, projections, models
+python sweeps/sweep.py --sweeps windows --windows 10:5 25:5 40:20 100:50
+python sweeps/sweep.py --data-dir /path/to/books --book hamlet --sweeps windows models
 ```
 
 Each sweep writes a grid figure and a CSV of metrics under
@@ -250,10 +262,10 @@ params.json                                arguments, commit and settings of the
 ## Layout
 
 ```
-arc_2d.py, arc_3d.py, arc_tube.py         command-line entry points
-grid_3d.py, sweep.py, build_windows.py
-explorer.py, tube_explorer.py            the interactive HTML pages
-validation/                              is the arc real? (see above)
+curve/           arc_2d.py, arc_3d.py, explorer.py
+tube/            arc_tube.py, tube_explorer.py
+sweeps/          sweep.py, grid_3d.py
+validation/      arc_comparison.py, arc_comparison_projections.py
 narrative_arc/
   data.py          loading books, embeddings, emotion scores; emotion palette
   windows.py       window bounds, pooling, the saved series (the one
@@ -264,6 +276,8 @@ narrative_arc/
   curves.py        B-spline fit through the windows (sets up bspline-regression)
   plot_2d.py       matplotlib 2-D arc
   plot_3d.py       matplotlib 3-D arc + plotly interactive
+  plot_tube.py     the tube's static and interactive renders
+  explorer_data.py what both explorers share: window presets, per-book record
   cli.py, paths.py shared arguments, output paths
 vendor/bspline_regression/   the curve-fitting library (vendored)
 ```

@@ -142,7 +142,7 @@ def grid_windows(coords, emotions, scores, chapters, args):
     The surface is fitted to paragraphs, so it does not depend on the window:
     every panel shows the same terrain and only the route changes. Each window
     is represented by its medoid paragraph. Window settings are read from what
-    common/windows.py (or arc/build_windows.py) has saved, so this cannot
+    common/windows.py has saved, so this cannot
     disagree with the rest of the repository about where a window begins.
     """
     root = paths.out_dir(args.book, args.model, paths.WINDOWS, create=False)

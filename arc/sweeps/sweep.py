@@ -32,14 +32,15 @@ Metrics, and what they say:
 
 Examples:
 
-python sweep.py                                     # all four, sample data
-python sweep.py --sweeps windows --windows 10:5 25:5 40:20 100:50
-python sweep.py --data-dir ../neurrative/books --book hamlet --sweeps windows models
+python sweeps/sweep.py                                     # all four, sample data
+python sweeps/sweep.py --sweeps windows --windows 10:5 25:5 40:20 100:50
+python sweeps/sweep.py --book hamlet --sweeps windows models
 """
 
 import argparse
 import csv
 import os
+import sys
 
 import matplotlib
 matplotlib.use("Agg")
@@ -49,6 +50,9 @@ from scipy.spatial import procrustes
 from scipy.spatial.distance import pdist, squareform
 from scipy.stats import spearmanr
 from sklearn.manifold import trustworthiness
+
+# arc/ on the path, for the narrative_arc package one level up.
+sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from narrative_arc import cli, paths
 from narrative_arc import windows as W

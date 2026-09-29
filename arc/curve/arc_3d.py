@@ -30,15 +30,19 @@ Outputs, under <output-dir>/<book>/<model>/:
 
 Examples:
 
-python arc_3d.py
-python arc_3d.py --methods pca --color progression dominant --fit --show-control
-python arc_3d.py --size 15 --stride 3 --elev 30 --azim 45
+python curve/arc_3d.py
+python curve/arc_3d.py --methods pca --color progression dominant --fit --show-control
+python curve/arc_3d.py --size 15 --stride 3 --elev 30 --azim 45
 """
 
 import argparse
 import os
+import sys
 
 import numpy as np
+
+# arc/ on the path, for the narrative_arc package one level up.
+sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from narrative_arc import cli, paths
 from narrative_arc import windows as W

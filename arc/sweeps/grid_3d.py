@@ -22,19 +22,23 @@ closely -- so every row is fitted equally tightly whatever its window count.
 
 Examples:
 
-python grid_3d.py
-python grid_3d.py --methods pca tsne
-python grid_3d.py --windows 20:10 40:20 --methods pca umap tsne
+python sweeps/grid_3d.py
+python sweeps/grid_3d.py --methods pca tsne
+python sweeps/grid_3d.py --windows 20:10 40:20 --methods pca umap tsne
 """
 
 import argparse
 import os
+import sys
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import numpy as np
+
+# arc/ on the path, for the narrative_arc package one level up.
+sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from narrative_arc import cli, paths
 from narrative_arc import windows as W
