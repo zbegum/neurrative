@@ -12,6 +12,10 @@ under `arc_on_surface/output/<book>/<model>/narrative_arc_3d/`:
 | one mood axis: six emotions collapsed to one height | `mood_axis/` | `arc_emotion_axis.py`, `arc_emotion_grid.py`, `arc_emotion_surface_grid.py`, `arc_emotion_smoother_grid.py` (+ `_interactive`) |
 | the terrain, with the arc smoothed on it | `curve_smoothing/` | `arc_smooth.py` |
 
+`story_map.py` writes `output/story_map.html`: the arc moving across one
+emotion's landscape (2-D contours), linked to the paragraph text and to a
+timeline of that emotion. The copy in `docs/interactive/` is this page.
+
 And, under `geodesics/`, paths between paragraphs rather than along the arc:
 
 | script | what |
