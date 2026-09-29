@@ -1,8 +1,27 @@
-books/
+# generated figures and intermediate results (rebuild with the scripts)
 output/
 old/
 slurm/
-
 *.out
 
+# books/: tracked, except local backups
+books/**/.backup*/
+
+# python
 __pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# native build products (built on first use)
+*.o
+*.so
+*.dylib
+closed-surface/vendor/PoissonRecon/Bin/
+
+# editors / OS
+.DS_Store
+.vscode/
+.idea/
+
+# reference papers are cited in the README, not redistributed
+*.pdf
