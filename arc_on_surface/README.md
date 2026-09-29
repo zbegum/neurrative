@@ -36,3 +36,10 @@ axis uses the repository's single mood definition, `surface/mood/mood.py`.
   around a hill. `geodesic_arrows.py` solves every rising pair, which takes a
   few minutes per emotion on Alice and longer on bigger books; pass
   `--emotions wonder` to run one.
+
+## Known issue
+
+On larger books `arc_on_surface.py` with all six emotions in one run is far
+slower than the sum of its parts: on Pride and Prejudice each emotion alone
+takes 34–62 s, but the six together did not finish in 51 minutes. Until that is
+tracked down, run one emotion at a time with `--emotions <name>`.

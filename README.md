@@ -83,6 +83,7 @@ python projection/chain_umap.py --book alice_wonderland --model bge-m3  # needed
 python surface/points/raw_points.py --book alice_wonderland --model bge-m3
 python surface/kernel/gaussian.py --book alice_wonderland --model bge-m3  # or epanechnikov / local_linear / loess / loo
 python surface/bspline/fit_surface.py --book alice_wonderland --model bge-m3 --grid
+bash surface/poisson/build_vendor.sh  # once: builds PoissonRecon
 python surface/poisson/fit_surface.py --book alice_wonderland --model bge-m3 --open
 python surface/mood/run.py --book alice_wonderland --model bge-m3 --figure surface
 
