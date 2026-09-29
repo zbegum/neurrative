@@ -1,0 +1,10 @@
+{
+  "model": "qwen3-embedding",
+  "hf_model": "Qwen/Qwen3-Embedding-4B",
+  "num_paragraphs": 892,
+  "embedding_dimension": 2560,
+  "dtype": "float32",
+  "normalized": true,
+  "batch_size": 4,
+  "device": "cuda"
+}
