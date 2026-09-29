@@ -1,14 +1,15 @@
 # Interactive
 
-[`story_map.html`](story_map.html): download it and open it in a browser (it
-loads d3 from the web).
+Three pages. Download one and open it in a browser (it loads d3 and three.js
+from the web).
 
-The map is the PCA plane with one emotion's landscape; the line is the
-narrative arc (40-paragraph windows); the timeline below is that emotion over
-reading order. Drag the timeline, click the map, use the arrow keys (shift for
-bigger steps) or press space to play. The address keeps the position, so a link
-like `story_map.html#alice_wonderland/humor/412` opens at that paragraph.
+| page | what it shows | rebuild |
+|---|---|---|
+| [`story_map.html`](story_map.html) | The narrative arc crossing an emotion landscape, flat or in 3-D (the arc riding the terrain), on any saved surface (kernel, B-spline, Poisson, mood), with the text and the emotion over reading order. | `python arc_on_surface/story_map.py` |
+| [`surface_lab.html`](surface_lab.html) | One emotion's surface from every method side by side, on one shared scale, turning together. | `python surface/surface_lab.py` |
+| [`arc_viewer.html`](arc_viewer.html) | The arc in three components under PCA, UMAP or t-SNE, with its fitted B-spline and the emotion tube, and the text. | `python arc/curve/arc_viewer.py` |
 
-Rebuild with `python arc_on_surface/story_map.py`. The older explorers
-(`arc/curve/explorer.py`, `arc/tube/tube_explorer.py`, `surface/mood/run.py
---figure interactive`) still write their pages into `output/`.
+Everywhere: drag the timeline, arrow keys step (shift for 20), space plays;
+drag to turn a 3-D view. The story map jumps to the nearest paragraph on a click
+(double-click in 3-D). The address keeps the view, so a link such as
+`story_map.html#pride_and_prejudice/sadness/900/3d` opens exactly there.

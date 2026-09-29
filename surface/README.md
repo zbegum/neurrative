@@ -17,7 +17,8 @@ Each method has its own folder, with its own README and its own `output/`:
 | [`mood/`](mood/) | one mood surface | the six emotions collapsed to one sadness → humor value first, then one surface | blend, bandwidth |
 
 Kernel, B-spline and Poisson all write the same `field_<emotion>_pca.npz`, so
-`arc_on_surface/` can walk on any of them.
+`arc_on_surface/` can walk on any of them. `surface_lab.py` puts them side by
+side in 3-D, on one shared scale (`output/surface_lab.html`).
 
 ## What they agree on (bge-m3)
 

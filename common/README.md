@@ -10,6 +10,7 @@ draws a figure.
 | `windows.py` | The windowed series: the book as an ordered sequence of mean-pooled windows, saved to `arc/output/<book>/<model>/windows/`. The window arithmetic itself (`window_bounds`, `window_centers`, `pool`) is imported from `arc/narrative_arc/windows.py`, so there is one definition. Runnable: `python common/windows.py --book <book> --model <model>`. |
 | `smooth_common.py` | The protocol every surface fit is held to: standardized coordinates, k-fold CV on a training split, one held-out score, and the shared figures. Used by `surface/` and `arc_on_surface/`. |
 | `embedding_common.py` | What the projection scripts share: colors, drawing, and where their output goes. |
+| `viewer.py`, `web/` | What the interactive pages share: loading a book for reading, one grid over the PCA plane, resampling saved surfaces onto it, and writing a self-contained page. `web/viewer.css` and `web/viewer.js` (timeline, text panel, keys, 3-D scene, terrain) are inlined into every page. |
 
 ## How scripts find these modules
 

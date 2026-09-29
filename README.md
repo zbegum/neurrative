@@ -24,7 +24,7 @@ their shape says about the story:
 
 The goal is interpretability and visualization, not a predictive model.
 Selected results, with numbers, are in **[docs/figures](docs/figures/README.md)**;
-the story map, to explore them, is in **[docs/interactive](docs/interactive/README.md)**.
+three interactive pages to explore them are in **[docs/interactive](docs/interactive/README.md)**.
 
 ## Repository layout
 
@@ -53,7 +53,7 @@ arc/                step 3  the narrative arc
 arc_on_surface/     step 4  the arc lifted onto the landscape, and geodesics
 
 docs/figures/       curated figures with captions
-docs/interactive/   the story map: the arc crossing an emotion landscape, with the text
+docs/interactive/   three interactive pages: story map, surface lab, arc in 3-D
 site/               a pipeline reference page generated from the code
 ```
 

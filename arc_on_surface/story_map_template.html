@@ -5,202 +5,180 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Story map</title>
 <style>
-  :root {
-    --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --ink-3: #8a8983;
-    --arc: #bab9b3; --dot: #52514e; --marker: #eb6834; --line: #2a78d6;
-    --ramp: #cde2fb,#9ec5f4,#6da7ec,#3987e5,#256abf,#184f95,#0d366b;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --ink-3: #85847d;
-      --arc: #5c5b56; --dot: #c3c2b7; --marker: #d95926; --line: #3987e5;
-      --ramp: #10233d,#0d366b,#184f95,#256abf,#3987e5,#6da7ec,#9ec5f4;
-    }
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--surface); color: var(--ink); }
-  body { display: grid; grid-template-rows: auto 1fr 96px; height: 100vh;
-         font: 14px/1.4 system-ui, -apple-system, sans-serif; }
-  header { padding: 12px 16px 0; display: flex; gap: 8px; }
-  select { font: inherit; color: var(--ink); background: transparent;
-           border: 1px solid var(--arc); border-radius: 6px; padding: 3px 6px; }
-  main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-         min-height: 0; }
-  #map { width: 100%; height: 100%; cursor: crosshair; display: block; }
-  #read { padding: 24px 32px 16px 8px; overflow-y: auto; }
-  #chapter { color: var(--ink-3); font-size: 13px; margin-bottom: 12px; }
-  #text { font: 18px/1.6 Georgia, "Iowan Old Style", serif; max-width: 34em; }
-  #timeline { width: 100%; height: 96px; display: block; cursor: ew-resize;
-              touch-action: none; }
-  @media (max-width: 760px) {
-    body { grid-template-rows: auto 1fr 80px; height: auto; min-height: 100vh; }
-    main { grid-template-columns: 1fr; }
-    #map { height: 60vh; }
-    #read { padding: 8px 16px; }
-    #text { font-size: 16px; }
-  }
+__CSS__
+body { display: grid; grid-template-rows: auto 1fr 96px; height: 100vh; }
+main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); min-height: 0; }
+#map2d { cursor: crosshair; }
+@media (max-width: 760px) {
+  body { grid-template-rows: auto auto auto 80px; height: auto; min-height: 100vh; }
+  main { grid-template-columns: 1fr; }
+  .stage { height: 60vh; }
+}
 </style>
+__HEAD_LIBS__
 </head>
 <body>
-<header><select id="book"></select><select id="emotion"></select></header>
+<header>
+  <select id="book"></select><select id="emotion"></select><select id="method"></select>
+  <button class="toggle" id="dim" aria-pressed="false">3D</button>
+</header>
 <main>
-  <svg id="map"></svg>
-  <div id="read"><div id="chapter"></div><div id="text"></div></div>
+  <div class="stage"><svg id="map2d" class="scene"></svg><div id="map3d" class="hidden"></div></div>
+  <div class="read"><div class="chapter" id="chapter"></div><div class="text" id="text"></div></div>
 </main>
-<svg id="timeline"></svg>
-<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-<script>
+<svg id="timeline" class="timeline"></svg>
+<script type="module">
+__VIEWER_JS__
+
 const DATA = __DATA__;
-const $ = (id) => document.getElementById(id);
-const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const state = { book: Object.keys(DATA.books)[0], emotion: DATA.emotions[0], i: 0, playing: null };
+const NAMES = { kernel: "kernel", bspline: "b-spline", poisson: "poisson", mood: "mood" };
+const S = { book: Object.keys(DATA.books)[0], emotion: DATA.emotions[0], method: "kernel", three: false, i: 0 };
+const book = () => DATA.books[S.book];
+const field = () => { const f = book().fields[S.method]; return f && (f[S.emotion] || f["*"]); };
+const series = () => book().timeline[S.method === "mood" ? "mood" : S.emotion];
 
 for (const [k, b] of Object.entries(DATA.books)) $("book").add(new Option(b.title, k));
 for (const e of DATA.emotions) $("emotion").add(new Option(e, e));
-$("book").onchange = (ev) => { state.book = ev.target.value; state.i = 0; draw(); };
-$("emotion").onchange = (ev) => { state.emotion = ev.target.value; draw(); };
-
-const book = () => DATA.books[state.book];
-
-// ---- map -------------------------------------------------------------------
-let sx, sy;
-function drawMap() {
-  const svg = d3.select("#map"), b = book(), el = $("map");
-  const W = el.clientWidth, H = el.clientHeight, m = 24;
-  const [x0, x1, y0, y1] = b.extent;
-  const k = Math.min((W - 2 * m) / (x1 - x0), (H - 2 * m) / (y1 - y0));
-  const ox = (W - k * (x1 - x0)) / 2, oy = (H - k * (y1 - y0)) / 2;
-  sx = (x) => ox + (x - x0) * k;
-  sy = (y) => H - oy - (y - y0) * k;
-  svg.selectAll("*").remove();
-
-  // landscape: filled contour bands of one emotion, clipped to where there are paragraphs
-  const n = b.grid, grid = b.fields[state.emotion], sup = b.support[state.emotion];
-  const inside = grid.filter((v, j) => sup[j] >= 1);
-  const lo = d3.min(inside), hi = d3.max(inside);
-  const ramp = css("--ramp").split(",").map((s) => s.trim());
-  const levels = d3.range(ramp.length).map((j) => lo + (hi - lo) * j / ramp.length);
-  const toX = (u) => x0 + (u - 0.5) / (n - 1) * (x1 - x0);
-  const toY = (v) => y0 + (v - 0.5) / (n - 1) * (y1 - y0);
-  const proj = d3.geoTransform({ point(u, v) { this.stream.point(sx(toX(u)), sy(toY(v))); } });
-  svg.append("clipPath").attr("id", "support").append("path")
-    .attr("d", d3.geoPath(proj)(d3.contours().size([n, n]).thresholds([1])(sup)[0]));
-  svg.append("g").attr("clip-path", "url(#support)").selectAll("path")
-    .data(d3.contours().size([n, n]).thresholds(levels)(grid))
-    .join("path").attr("d", d3.geoPath(proj))
-    .attr("fill", (d, j) => ramp[j]).attr("stroke", "none");
-
-  // paragraphs
-  svg.append("g").attr("fill", css("--dot")).attr("fill-opacity", 0.28)
-    .selectAll("circle").data(b.x).join("circle")
-    .attr("cx", (x) => sx(x)).attr("cy", (x, j) => sy(b.y[j])).attr("r", 1.6);
-
-  // the arc, whole and travelled
-  const line = d3.line().x((p) => sx(p[0])).y((p) => sy(p[1])).curve(d3.curveCatmullRom);
-  svg.append("path").attr("d", line(b.arc)).attr("fill", "none")
-    .attr("stroke", css("--arc")).attr("stroke-width", 1.5);
-  svg.append("path").attr("id", "travelled").attr("fill", "none")
-    .attr("stroke", css("--ink")).attr("stroke-width", 2).attr("stroke-linecap", "round");
-  svg.append("circle").attr("id", "marker").attr("r", 6)
-    .attr("fill", css("--marker")).attr("stroke", css("--surface")).attr("stroke-width", 2);
-  svg.node().__line = line;
+function methods() {
+  const sel = $("method"), keep = S.method;
+  sel.innerHTML = "";
+  for (const k of Object.keys(book().fields)) sel.add(new Option(NAMES[k] || k, k));
+  S.method = book().fields[keep] ? keep : "kernel";
+  sel.value = S.method;
+  $("emotion").disabled = S.method === "mood";
 }
+$("book").onchange = (e) => { S.book = e.target.value; S.i = 0; methods(); draw(); };
+$("emotion").onchange = (e) => { S.emotion = e.target.value; draw(); };
+$("method").onchange = (e) => { S.method = e.target.value; $("emotion").disabled = S.method === "mood"; draw(); };
+$("dim").onclick = () => {
+  S.three = !S.three; $("dim").setAttribute("aria-pressed", S.three);
+  $("map2d").classList.toggle("hidden", S.three); $("map3d").classList.toggle("hidden", !S.three);
+  draw();
+};
 
-// position on the arc for a paragraph: interpolate between window centres
-function arcAt(i) {
-  const a = book().arc;
-  if (i <= a[0][2]) return { pts: [a[0]], p: a[0] };
-  for (let j = 1; j < a.length; j++) {
-    if (i <= a[j][2]) {
-      const t = (i - a[j - 1][2]) / (a[j][2] - a[j - 1][2]);
-      const p = [a[j - 1][0] + t * (a[j][0] - a[j - 1][0]), a[j - 1][1] + t * (a[j][1] - a[j - 1][1])];
-      return { pts: a.slice(0, j).concat([p]), p };
+// value range of a field inside the paragraphs' footprint
+const range = (f) => {
+  const s = book().support, v = f.filter((x, k) => x !== null && s[k] >= 1);
+  return [d3.min(v), d3.max(v)];
+};
+
+// the window path sampled densely (Catmull-Rom), each point with its reading position
+function denseArc(P, per = 8) {
+  const out = [];
+  for (let k = 0; k < P.length - 1; k++) {
+    const p0 = P[Math.max(0, k - 1)], p1 = P[k], p2 = P[k + 1], p3 = P[Math.min(P.length - 1, k + 2)];
+    for (let s = 0; s < per; s++) {
+      const t = s / per, t2 = t * t, t3 = t2 * t;
+      const cr = (a, b, c, d) => 0.5 * (2 * b + (c - a) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (3 * b - a - 3 * c + d) * t3);
+      out.push([cr(p0[0], p1[0], p2[0], p3[0]), cr(p0[1], p1[1], p2[1], p3[1]), p1[2] + t * (p2[2] - p1[2])]);
     }
   }
-  return { pts: a, p: a[a.length - 1] };
+  out.push(P[P.length - 1]);
+  return out;
 }
 
-// ---- timeline ----------------------------------------------------------------
-let tx;
-function drawTimeline() {
-  const svg = d3.select("#timeline"), el = $("timeline"), b = book();
-  const W = el.clientWidth, H = el.clientHeight, m = { l: 16, r: 16, t: 14, b: 18 };
-  const series = b.timeline[state.emotion], N = series.length;
-  tx = d3.scaleLinear([0, N - 1], [m.l, W - m.r]);
-  const [smin, smax] = d3.extent(series);
-  const ty = d3.scaleLinear([smin - (smax - smin) * 0.08, smax], [H - m.b, m.t]);
+// ---- 2-D ----------------------------------------------------------------------
+let sx, sy, line2d;
+function draw2d() {
+  const svg = d3.select("#map2d"), el = $("map2d"), b = book(), f = field();
+  const W = el.clientWidth, H = el.clientHeight, m = 24, [x0, x1, y0, y1] = b.extent, n = b.n;
+  const k = Math.min((W - 2 * m) / (x1 - x0), (H - 2 * m) / (y1 - y0));
+  const ox = (W - k * (x1 - x0)) / 2, oy = (H - k * (y1 - y0)) / 2;
+  sx = (x) => ox + (x - x0) * k; sy = (y) => H - oy - (y - y0) * k;
   svg.selectAll("*").remove();
+  const toX = (u) => x0 + (u - 0.5) / (n - 1) * (x1 - x0), toY = (v) => y0 + (v - 0.5) / (n - 1) * (y1 - y0);
+  const proj = d3.geoTransform({ point(u, v) { this.stream.point(sx(toX(u)), sy(toY(v))); } });
+  svg.append("clipPath").attr("id", "fp").append("path")
+    .attr("d", d3.geoPath(proj)(d3.contours().size([n, n]).thresholds([1])(b.support)[0]));
+  const [lo, hi] = range(f), R = ramp();
+  const grid = f.map((v) => (v === null ? lo - 1 : v));
+  svg.append("g").attr("clip-path", "url(#fp)").selectAll("path")
+    .data(d3.contours().size([n, n]).thresholds(d3.range(R.length).map((j) => lo + (hi - lo) * j / R.length))(grid))
+    .join("path").attr("d", d3.geoPath(proj)).attr("fill", (d, j) => R[j]);
+  svg.append("g").attr("fill", css("--dot")).attr("fill-opacity", 0.28).selectAll("circle")
+    .data(b.x).join("circle").attr("cx", (x) => sx(x)).attr("cy", (x, j) => sy(b.y[j])).attr("r", 1.6);
+  line2d = d3.line().x((p) => sx(p[0])).y((p) => sy(p[1])).curve(d3.curveCatmullRom);
+  svg.append("path").attr("d", line2d(b.arc)).attr("fill", "none").attr("stroke", css("--arc")).attr("stroke-width", 1.5);
+  svg.append("path").attr("id", "trav").attr("fill", "none").attr("stroke", css("--ink")).attr("stroke-width", 2);
+  svg.append("circle").attr("id", "mark").attr("r", 6).attr("fill", css("--marker"))
+    .attr("stroke", css("--surface")).attr("stroke-width", 2);
+}
+$("map2d").addEventListener("click", (ev) => {
+  const [mx, my] = d3.pointer(ev), b = book();
+  go(d3.minIndex(b.x, (x, j) => (sx(x) - mx) ** 2 + (sy(b.y[j]) - my) ** 2));
+});
 
-  // chapter starts
-  const starts = b.chapter.map((c, j) => (j === 0 || c !== b.chapter[j - 1]) ? j : null).filter((j) => j !== null);
-  svg.append("g").attr("stroke", css("--arc")).attr("stroke-width", 1)
-    .selectAll("line").data(starts).join("line")
-    .attr("x1", tx).attr("x2", tx).attr("y1", H - m.b).attr("y2", H - m.b + 6);
-
-  svg.append("path").datum(series).attr("fill", css("--line")).attr("fill-opacity", 0.12)
-    .attr("d", d3.area().x((v, j) => tx(j)).y0(H - m.b).y1(ty).curve(d3.curveMonotoneX));
-  svg.append("path").datum(series).attr("fill", "none").attr("stroke", css("--line"))
-    .attr("stroke-width", 2).attr("d", d3.line().x((v, j) => tx(j)).y(ty).curve(d3.curveMonotoneX));
-  svg.append("line").attr("id", "cursor").attr("y1", m.t - 6).attr("y2", H - m.b)
-    .attr("stroke", css("--ink")).attr("stroke-width", 1.5);
-
-  const seek = (ev) => { go(Math.round(tx.invert(d3.pointer(ev, el)[0]))); };
-  d3.select(el).on("pointerdown", (ev) => { el.setPointerCapture(ev.pointerId); seek(ev); })
-    .on("pointermove", (ev) => { if (ev.buttons) seek(ev); });
+// ---- 3-D ----------------------------------------------------------------------
+let scene3 = null, arc3 = [], ground = null, marker3 = null, trav3 = null;
+function draw3d() {
+  if (!scene3) {
+    scene3 = Scene($("map3d"));
+    scene3.renderer.domElement.addEventListener("dblclick", pick3d);
+  }
+  scene3.clear(); trav3 = null;
+  const b = book(), f = field(), F = Frame(b.extent), [lo, hi] = range(f);
+  const h = (v) => lift(v, lo, hi);
+  ground = terrain(f, b.n, b.extent, { height: h, lo, hi, keep: (k) => b.support[k] >= 1 });
+  scene3.group.add(ground);
+  arc3 = denseArc(b.arc).map(([x, y, c]) => {
+    const v = sample(f, b.n, b.extent, x, y);
+    return [F.X(x), h(Number.isFinite(v) ? v : lo) + 0.006, F.Z(y), c];
+  });
+  scene3.group.add(curve(arc3.map((p) => p.slice(0, 3)), 0.0014, css("--arc")));
+  marker3 = ball([0, 0, 0], 0.014, css("--marker"));
+  scene3.group.add(marker3);
+}
+// double-click the terrain: jump to the nearest paragraph
+function pick3d(ev) {
+  const r = scene3.renderer.domElement.getBoundingClientRect();
+  const ray = new scene3.THREE.Raycaster();
+  ray.setFromCamera({ x: (ev.clientX - r.left) / r.width * 2 - 1, y: -(ev.clientY - r.top) / r.height * 2 + 1 }, scene3.camera);
+  const hit = ray.intersectObject(ground)[0];
+  if (!hit) return;
+  const b = book(), F = Frame(b.extent);
+  go(d3.minIndex(b.x, (x, j) => (F.X(x) - hit.point.x) ** 2 + (F.Z(b.y[j]) - hit.point.z) ** 2));
 }
 
-// ---- state -------------------------------------------------------------------
+// ---- reading --------------------------------------------------------------------
+const tl = Timeline($("timeline"), (i) => go(i));
 function go(i) {
   const b = book();
-  state.i = Math.max(0, Math.min(b.text.length - 1, i));
-  const { pts, p } = arcAt(state.i);
-  d3.select("#travelled").attr("d", $("map").__line(pts));
-  d3.select("#marker").attr("cx", sx(p[0])).attr("cy", sy(p[1]));
-  d3.select("#cursor").attr("x1", tx(state.i)).attr("x2", tx(state.i));
-  $("chapter").textContent = b.chapters[b.chapter[state.i]];
-  $("text").textContent = b.text[state.i];
-  history.replaceState(null, "", `#${state.book}/${state.emotion}/${state.i}`);
+  S.i = Math.max(0, Math.min(b.text.length - 1, i));
+  if (S.three) {
+    const j = Math.max(0, d3.bisector((p) => p[3]).left(arc3, S.i) - 1);
+    if (trav3) { scene3.group.remove(trav3); trav3.geometry.dispose(); trav3 = null; }
+    if (j > 0) { trav3 = curve(arc3.slice(0, j + 1).map((p) => p.slice(0, 3)), 0.0024, css("--ink")); scene3.group.add(trav3); }
+    marker3.position.set(...arc3[j].slice(0, 3));
+    scene3.request();
+  } else {
+    const { k, t } = pathAt(b.arc, S.i), P = b.arc;
+    const p = [P[k][0] + t * (P[k + 1][0] - P[k][0]), P[k][1] + t * (P[k + 1][1] - P[k][1])];
+    d3.select("#trav").attr("d", line2d(P.slice(0, k + 1).concat([p])));
+    d3.select("#mark").attr("cx", sx(p[0])).attr("cy", sy(p[1]));
+  }
+  tl.set(S.i);
+  setText(b, S.i, $("chapter"), $("text"));
+  history.replaceState(null, "", `#${S.book}/${S.method === "mood" ? "mood" : S.emotion}/${S.i}${S.three ? "/3d" : ""}`);
 }
+function draw() {
+  S.three ? draw3d() : draw2d();
+  tl.draw(series(), book().chapter);
+  go(S.i);
+}
+readingKeys(() => S.i, () => book().text.length, go);
 
-function draw() { drawMap(); drawTimeline(); go(state.i); }
-
-// click the map: jump to the nearest paragraph
-$("map").addEventListener("click", (ev) => {
-  const [mx, my] = d3.pointer(ev), b = book();
-  let best = 0, bd = Infinity;
-  for (let j = 0; j < b.x.length; j++) {
-    const d = (sx(b.x[j]) - mx) ** 2 + (sy(b.y[j]) - my) ** 2;
-    if (d < bd) { bd = d; best = j; }
-  }
-  go(best);
-});
-
-// arrows step, shift+arrows jump, space plays
-document.addEventListener("keydown", (ev) => {
-  if (ev.target.tagName === "SELECT") return;
-  if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
-    go(state.i + (ev.key === "ArrowRight" ? 1 : -1) * (ev.shiftKey ? 20 : 1)); ev.preventDefault();
-  } else if (ev.key === " ") {
-    ev.preventDefault();
-    if (state.playing) { clearInterval(state.playing); state.playing = null; }
-    else state.playing = setInterval(() => {
-      if (state.i >= book().text.length - 1) { clearInterval(state.playing); state.playing = null; }
-      else go(state.i + 1);
-    }, 60);
-  }
-});
-
-// open at #book/emotion/paragraph when the link carries one
+// open at #book/emotion-or-mood/paragraph[/3d]
 {
-  const [bk, em, i] = decodeURIComponent(location.hash.slice(1)).split("/");
-  if (DATA.books[bk]) { state.book = bk; $("book").value = bk; }
-  if (DATA.emotions.includes(em)) { state.emotion = em; $("emotion").value = em; }
-  if (i && !isNaN(+i)) state.i = +i;
+  const [bk, em, i, d] = decodeURIComponent(location.hash.slice(1)).split("/");
+  if (DATA.books[bk]) S.book = bk;
+  $("book").value = S.book; methods();
+  if (em === "mood" && book().fields.mood) { S.method = "mood"; $("method").value = "mood"; $("emotion").disabled = true; }
+  else if (DATA.emotions.includes(em)) { S.emotion = em; $("emotion").value = em; }
+  if (i && !isNaN(+i)) S.i = +i;
+  if (d === "3d") $("dim").click(); else draw();
 }
-
-window.addEventListener("resize", draw);
+window.addEventListener("resize", () => { if (!S.three) draw(); });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
-draw();
 </script>
 </body>
 </html>

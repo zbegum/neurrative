@@ -10,5 +10,6 @@ projection and window setting precomputed.
     python curve/arc_2d.py --fit --show-control      # run from arc/
     python curve/arc_3d.py --fit
     python curve/explorer.py
+    python curve/arc_viewer.py     # the arc in 3-D with its fit, the tube and the text
 
 Options and outputs: [../README.md](../README.md#usage).

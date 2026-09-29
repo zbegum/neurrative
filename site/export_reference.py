@@ -22,7 +22,7 @@ SITE = os.path.dirname(os.path.abspath(__file__))
 GEO = os.path.join(ROOT, "geometry")
 COMMON = os.path.join(ROOT, "common")
 # Every folder that holds runnable scripts, in pipeline order.
-SCRIPT_DIRS = ["preprocess", "common", "projection", "surface/points",
+SCRIPT_DIRS = ["preprocess", "common", "projection", "surface", "surface/points",
                "surface/kernel", "surface/bspline", "surface/poisson",
                "surface/mood", "arc/curve", "arc/tube", "arc/sweeps",
                "arc/validation", "arc_on_surface"]
