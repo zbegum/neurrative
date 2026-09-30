@@ -81,7 +81,7 @@ from data import load_paragraphs, load_scores
 # The windowing is shared: `windows.py` is the one definition of what a window
 # is, and what saves the series these scripts draw. Re-exported because five
 # other arc scripts import `window_bounds` from this module.
-from windows import window_bounds
+from windows import DEFAULT_SIZE, DEFAULT_STRIDE, window_bounds
 from smooth_common import Standardizer, load_pca, fit_grid
 from geometry.smoothers import gaussian_nw
 from geometry import mesh as gmesh
@@ -458,15 +458,15 @@ def main():
   ap = argparse.ArgumentParser()
   ap.add_argument("--book", default="alice_wonderland")
   ap.add_argument("--model", default="bge-m3")
-  ap.add_argument("--size", default=10, type=int)
-  ap.add_argument("--stride", default=5, type=int)
+  ap.add_argument("--size", default=DEFAULT_SIZE, type=int)
+  ap.add_argument("--stride", default=DEFAULT_STRIDE, type=int)
   ap.add_argument("--emotions", nargs="*", default=None,
                   help="Subset of emotions (default: all).")
   # 0.15 (not the geodesic 0.2): below the CV-tuned 0.4, in the bandwidth grid's
   # "noise -> structure" band, so the terrain has visible relief and is not flat.
   ap.add_argument("--hx", default=0.15, type=float)
   ap.add_argument("--hy", default=0.15, type=float)
-  ap.add_argument("--alpha", default=1.0, type=float,
+  ap.add_argument("--alpha", default=gmesh.DEFAULT_ALPHA, type=float,
                   help="Vertical exaggeration: the exchange rate between score "
                        "units and PCA units. Sets every length ratio below.")
   ap.add_argument("--snap-tol", default=1.0, type=float,

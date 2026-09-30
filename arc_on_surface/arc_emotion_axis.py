@@ -3,30 +3,24 @@ One interpretable emotion axis: the six emotions collapsed into a single height,
 so following the story arc *is* watching the emotion change.
 
 arc_on_surface.py lifts the arc onto six separate emotion surfaces. Here the six
-are combined into one "mood" coordinate, laid out as a fixed spectrum:
+are combined into one "mood", the repository's single definition in
+surface/mood/mood.py: each paragraph's emotions are rank-normalised over the book
+and blended to one value on the spectrum
 
     sadness -> danger -> confusion -> curiosity -> wonder -> humor
      (heavy / negative)                              (light / positive)
 
-Each emotion sits at a fixed position on that line. A point's height is the
-score-weighted position of its emotional blend:
+and those per-paragraph moods are smoothed into one surface over the PCA plane
+(surface/mood/surface.py). The z-axis is ticked with the emotion names, so the
+emotion is read straight off the height.
 
-    z = sum_e position(e) * score(e) / sum_e score(e)
+The arc is the windows' mean points in the same plane, lightly smoothed, sampled
+densely and lifted onto that surface, so it lies on it. The reading-order figure
+shows both the mood the landscape assigns to the route (dashed) and the windows'
+own mood (the mean of their paragraphs' moods).
 
-so a window dominated by wonder sits high, one dominated by sadness sits low, and
-a mix lands in between. The z-axis is ticked with the emotion names at their
-positions, so the emotion is read straight off the height -- and as the arc rises
-and falls, you are watching the story's mood move. The arc's color is reading
-order (plasma, start -> end).
-
-The height comes from the emotion *surface* at the arc's location (the arc-on-
-surface premise: the arc lives in the surface's own PCA plane), so this is the
-mood the landscape assigns to the story's route. Only PCA -- the plane must be
-metric for a point to have one height.
-
-The spectrum order is a deliberate, adjustable choice (--order); it sets what
-"up" means. Everything lands in arc_on_surface/output/<book>/<model>/arc_on_surface/<variant>/,
-the variant naming the window, bandwidth, temperature and normalization used.
+Everything lands in arc_on_surface/output/<book>/<model>/narrative_arc_3d/mood_axis/<variant>/,
+the variant naming the window, bandwidth and blend.
 
 Example:
 
@@ -52,30 +46,15 @@ import paths
 from data import load_paragraphs, load_scores
 from smooth_common import load_pca
 from geometry.smoothers import nadaraya_watson
-from arc_on_surface import window_bounds, build_surface, surface_at
-# One definition of mood for the whole repository: surface/mood/mood.py.
-from surface.mood.mood import SPECTRUM, normalizer, softmax_position as mood
+from windows import DEFAULT_SIZE, DEFAULT_STRIDE, window_bounds
+# One definition of mood for the whole repository: surface/mood.
+from surface.mood import mood as mood_mod, surface as mood_surface
+from surface.mood.mood import SPECTRUM
 
 # Valence order, heavy/negative (bottom) to light/positive (top). Adjustable via
 # --order; anything not named is appended so the run never silently drops one.
 DEFAULT_ORDER = SPECTRUM
 
-
-
-def nan_blur(a, sigma):
-  """Gaussian blur of a 2-D field that ignores (and preserves) NaN cells.
-
-  Blur the values and the support mask separately and divide, so NaNs neither
-  bleed in as zeros nor spread; cells with no nearby support stay NaN.
-  """
-  if sigma <= 0:
-    return a
-  from scipy.ndimage import gaussian_filter
-  m = np.isfinite(a).astype(np.float64)
-  num = gaussian_filter(np.where(m > 0, a, 0.0), sigma)
-  den = gaussian_filter(m, sigma)
-  out = num / np.where(den > 0, den, np.nan)
-  return np.where(den > 0.25, out, np.nan)
 
 
 def sample_surface(GX, GY, Z, qx, qy):
@@ -110,35 +89,40 @@ def smooth1d(y, sigma):
   return nadaraya_watson(idx, y, idx, sigma)[0]
 
 
+def lifted_arc(arc_xy, height, arc_smooth, per=20, lift=0.01):
+  """The windows' path, smoothed over window index, sampled densely and lifted.
+
+  `height` evaluates the surface at (n, 2) plane points. Lifting every dense
+  sample (not just the windows) keeps the drawn path on the surface; straight 3-D
+  chords between lifted windows would cut through the hills between them.
+  """
+  wx = smooth1d(arc_xy[:, 0], arc_smooth)
+  wy = smooth1d(arc_xy[:, 1], arc_smooth)
+  t = np.linspace(0, len(wx) - 1, per * len(wx))
+  xy = np.column_stack([np.interp(t, np.arange(len(wx)), wx),
+                        np.interp(t, np.arange(len(wy)), wy)])
+  return np.column_stack([xy, height(xy) + lift])
+
+
 def main():
   ap = argparse.ArgumentParser()
   ap.add_argument("--book", default="alice_wonderland")
   ap.add_argument("--model", default="bge-m3")
-  ap.add_argument("--size", default=10, type=int)
-  ap.add_argument("--stride", default=5, type=int)
-  # 0.15, not the geodesic work's 0.2: below the CV-tuned 0.4, in the "noise ->
-  # structure" band the bandwidth grid maps out. 0.2 is a gentle swell, 0.1 is
-  # spiky annotation noise; 0.15 buys visible relief so the mood is not flat.
-  ap.add_argument("--hx", default=0.15, type=float)
-  ap.add_argument("--hy", default=0.15, type=float)
+  ap.add_argument("--size", default=DEFAULT_SIZE, type=int)
+  ap.add_argument("--stride", default=DEFAULT_STRIDE, type=int)
+  ap.add_argument("--blend", default="banded", choices=mood_mod.BLENDS,
+                  help="How six emotions become one mood (surface/mood/mood.py).")
+  ap.add_argument("--h", default=0.2, type=float,
+                  help="Bandwidth of the mood surface, in standardized coordinates.")
   ap.add_argument("--resolution", default=120, type=int)
-  ap.add_argument("--margin", default=0.05, type=float)
-  ap.add_argument("--density-floor", default=5.0, type=float)
   ap.add_argument("--order", nargs="+", default=None,
                   help="Emotion order, bottom (negative) to top (positive).")
-  ap.add_argument("--temp", default=0.3, type=float,
-                  help="Softmax temperature: small snaps to the strongest emotion "
-                       "(big mood swings), large averages (flatter).")
-  ap.add_argument("--norm", default="rank", choices=["rank", "zscore", "minmax"],
-                  help="Per-emotion normalization before blending (rank spreads most).")
   ap.add_argument("--spread", default="fill", choices=["absolute", "fill"],
                   help="absolute: y spans the full sadness..humor line. fill: zoom "
                        "y to the mood's actual range so the changes fill the plot.")
   ap.add_argument("--smooth", default=1.5, type=float,
                   help="Gaussian smoothing (in windows) of the mood line; 0 = raw.")
-  ap.add_argument("--surface-smooth", default=1.5, type=float,
-                  help="NaN-aware blur (grid cells) of the 3-D mood surface; 0 = raw.")
-  ap.add_argument("--arc-smooth", default=3.0, type=float,
+  ap.add_argument("--arc-smooth", default=1.0, type=float,
                   help="Smoothing (in windows) of the 3-D arc path so it reads as a "
                        "clean curve over the landscape instead of a hairball.")
   args = ap.parse_args()
@@ -148,57 +132,29 @@ def main():
   X_raw = np.asarray(load_pca(args.book, args.model), dtype=np.float64)[:, :2]
   n = len(X_raw)
 
-  order = args.order or [e for e in DEFAULT_ORDER if e in emotions]
-  order += [e for e in emotions if e not in order]          # never drop one
-  pos = np.linspace(0.0, 1.0, len(order))
-  pos_of = {e: p for e, p in zip(order, pos)}
+  # The repository's mood: per paragraph, then one surface over the PCA plane.
+  m, order, positions, _ = mood_mod.mood(matrix, emotions, order=args.order or DEFAULT_ORDER,
+                                         blend=args.blend)
   print(f"=== emotion axis: {args.book} / {args.model} ===")
   print("  spectrum (bottom->top): " +
-        " -> ".join(f"{e}({p:.2f})" for e, p in zip(order, pos)))
+        " -> ".join(f"{e}({p:.2f})" for e, p in zip(order, positions)))
 
-  # The mood is a blend, so the temperature and the normalization change the
-  # height as much as the window and the bandwidth do; all five belong in the
-  # directory name, since emotion_axis_3d.png records none of them.
   out_dir = paths.out_dir(args.book, args.model, os.path.join(paths.NARRATIVE_ARC_3D, paths.ARC_MOOD_AXIS),
-                          {"w": args.size, "s": args.stride, "h": args.hx,
-                           "t": args.temp, "norm": args.norm})
-  paths.stamp(out_dir, __file__, args, stack="geometry.smoothers",
-              estimator="gaussian_nw (anisotropic hx, hy; standardized coords)",
+                          {"w": args.size, "s": args.stride, "h": args.h,
+                           "blend": args.blend})
+  paths.stamp(out_dir, __file__, args, stack="surface.mood",
+              estimator="mood per paragraph, one gaussian_nw surface (surface/mood)",
               spectrum=order)
 
   windows = window_bounds(n, args.size, args.stride)
   centers = np.array([(s + e - 1) / 2.0 for s, e in windows])
   arc_xy = np.array([X_raw[s:e].mean(axis=0) for s, e in windows])
 
-  # Per-emotion terrain (grid) and arc height, in the fixed spectrum order.
-  grid_Z, arc_h, own_h, GX, GY = [], [], [], None, None
-  for e in order:
-    y = matrix[:, emotions.index(e)]
-    GX, GY, Z, xs, ys = build_surface(X_raw, y, args.hx, args.hy,
-                                      args.resolution, args.margin, args.density_floor)
-    grid_Z.append(Z)
-    arc_h.append(surface_at(xs, ys, X_raw, y, arc_xy, args.hx, args.hy))
-    own_h.append(np.array([y[s:e2].mean() for s, e2 in windows]))
-
-  positions = np.array([pos_of[e] for e in order])
-  # Put every emotion on a common footing first (see normalizer), then blend, so
-  # the mood reflects which emotion is *relatively* elevated, not its raw level.
-  tf = {e: normalizer(matrix[:, emotions.index(e)], args.norm) for e in order}
-  grid_n = np.stack([np.where(np.isnan(Z), np.nan, tf[e](Z))
-                     for e, Z in zip(order, grid_Z)])
-  arc_n = np.stack([tf[e](h) for e, h in zip(order, arc_h)])
-  own_n = np.stack([tf[e](h) for e, h in zip(order, own_h)])
-
-  # Only draw the mood surface where every emotion is supported; a cell backed by
-  # one or two emotions blends erratically and shows up as boundary spikes.
-  all_supported = np.all(np.isfinite(grid_n), axis=0)
-  mood_grid = np.where(all_supported, mood(grid_n, positions, args.temp), np.nan)
-  # The combined surface is a competition of six fields, so it comes out spiky;
-  # a NaN-aware blur turns it into a readable landscape without going flat.
-  mood_grid = nan_blur(mood_grid, args.surface_smooth)
-  mood_arc = mood(arc_n, positions, args.temp)
-  mood_own = mood(own_n, positions, args.temp)
-  print(f"  norm={args.norm} temp={args.temp} spread={args.spread} smooth={args.smooth}")
+  GX, GY, mood_grid, height_at = mood_surface.fit(X_raw, m, args.h,
+                                                  resolution=args.resolution)
+  mood_arc = height_at(arc_xy)                                   # the surface under each window
+  mood_own = np.array([m[s:e].mean() for s, e in windows])       # the window's own mood
+  print(f"  blend={args.blend} h={args.h} spread={args.spread} smooth={args.smooth}")
 
   print(f"  arc mood range {mood_arc.min():.2f}..{mood_arc.max():.2f} "
         f"(0=neg pole, 1=pos pole)")
@@ -207,13 +163,7 @@ def main():
   # Smooth the arc PATH (x, y and height together) so it reads as one clean curve
   # flowing over the landscape rather than a window-to-window hairball, and lift
   # it a hair above the surface so it is never buried inside it.
-  ax_s = smooth1d(arc_xy[:, 0], args.arc_smooth)
-  ay_s = smooth1d(arc_xy[:, 1], args.arc_smooth)
-  # Read the height off the drawn surface at the arc's plotted (x, y) so it rides
-  # on the terrain; fall back to the arc's own mood only where the surface is masked.
-  az_on = sample_surface(GX, GY, mood_grid, ax_s, ay_s)
-  az_s = np.where(np.isfinite(az_on), az_on, smooth1d(mood_arc, args.arc_smooth))
-  pts = np.column_stack([ax_s, ay_s, az_s + 0.01])
+  pts = lifted_arc(arc_xy, height_at, args.arc_smooth)
 
   fig = plt.figure(figsize=(12, 9))
   ax = fig.add_subplot(111, projection="3d")

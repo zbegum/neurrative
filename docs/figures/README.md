@@ -178,8 +178,9 @@ not data.
 ![Alice: wonder, Poisson surface](24_poisson_wonder_alice.png)
 
 **The mood surface** (`surface/mood/`): the six emotions collapsed to one value
-per paragraph on a sadness → humor spectrum, then one surface, drawn here over
-the chain-UMAP layout. The blends figure shows the four ways of collapsing six
+per paragraph on a sadness → humor spectrum, then one surface over the PCA
+plane. This is the repository's one definition of mood; every mood figure below
+uses it. The blends figure shows the four ways of collapsing six
 emotions to one height. For `project` and `pc1` the height is a direction
 (heavy → light) rather than a position on the spectrum, so read their emotion
 ticks only as low and high.
@@ -193,8 +194,8 @@ ticks only as low and high.
 The narrative arc from step 3, with a third axis that comes from the emotions.
 See [arc_on_surface/README.md](../../arc_on_surface/README.md).
 
-**On the terrain** (`arc_on_surface.py`): windows of 10 paragraphs stepping by
-5, each placed on the fitted surface of one emotion. By default consecutive
+**On the terrain** (`arc_on_surface.py`): windows of 40 paragraphs stepping by
+20 (the shared default), each placed on the fitted surface of one emotion. By default consecutive
 windows are joined by straight lines in the plane lifted onto the surface, so
 the route's shadow is exactly the 2-D arc; `--legs geodesic` joins them by
 shortest paths along the terrain instead. The dashed green line is the geodesic
@@ -204,9 +205,9 @@ under it to be measured.
 
 ![Alice: the arc on each emotion surface](28_arc_on_terrain_alice.png)
 
-**On one mood axis** (`arc_emotion_axis.py`): the same arc over a single surface
-whose height is the mood, so following the route is watching the mood change.
-Colour is reading order.
+**On one mood axis** (`arc_emotion_axis.py`): the same arc over the mood surface,
+sampled densely and lifted onto it, so following the route is watching the mood
+change. Colour is reading order.
 
 ![Alice: the arc on the mood axis](29_arc_on_mood_axis_alice.png)
 ![Pride and Prejudice: the arc on the mood axis](34_arc_on_mood_axis_pride.png)
@@ -226,8 +227,8 @@ depends on the vertical scale `alpha`.
 ![Alice: geodesics along the wonder terrain](31_geodesics_wonder_alice.png)
 
 **The arc on the mood surface** (`surface/mood/run.py --figure arc`): one
-central paragraph per chapter, joined by exact geodesics on the mood surface,
-coloured by reading position.
+central paragraph per chapter, joined by exact geodesics on the mood surface
+(vertical scale `alpha` = 1, the shared default), coloured by reading position.
 
 ![Alice: the arc as geodesics on the mood surface](32_mood_arc_geodesic_alice.png)
 

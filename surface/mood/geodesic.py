@@ -18,7 +18,7 @@ from geometry import mesh as gmesh
 from geometry.geodesic import exact_paths
 
 
-def route(GX, GY, Z, waypoints, reading_pos, alpha=6.0, snap_tol=1.0):
+def route(GX, GY, Z, waypoints, reading_pos, alpha=gmesh.DEFAULT_ALPHA, snap_tol=1.0):
     """Geodesic legs between consecutive waypoints.
 
     `alpha` is the height-to-plane exchange rate that defines "shortest".

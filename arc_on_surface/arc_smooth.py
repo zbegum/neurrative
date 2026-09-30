@@ -42,9 +42,11 @@ sys.path[1:1] = [_ROOT, os.path.join(_ROOT, "common")]
 import paths
 from data import load_paragraphs, load_scores
 from smooth_common import load_pca
-from arc_on_surface import window_bounds, build_surface
-from arc_emotion_axis import (sample_surface, normalizer, mood, nan_blur,
-                              DEFAULT_ORDER)
+from arc_on_surface import build_surface
+from arc_emotion_axis import sample_surface, DEFAULT_ORDER
+from geometry.mesh import DEFAULT_ALPHA
+from surface.mood import mood as mood_mod, surface as mood_surface
+from windows import DEFAULT_SIZE, DEFAULT_STRIDE, window_bounds
 from geometry.curve_smoothing import smooth_curve
 
 
@@ -65,21 +67,11 @@ def build_emotion_surface(X_raw, y, args):
   return GX, GY, Z
 
 
-def build_mood_surface(X_raw, matrix, emotions, order, positions, args):
-  """The combined mood field over the PCA grid (as in arc_emotion_axis)."""
-  grid_Z, tf = [], {}
-  GX = GY = None
-  for e in order:
-    y = matrix[:, emotions.index(e)]
-    GX, GY, Z, _xs, _ys = build_surface(X_raw, y, args.hx, args.hy, args.resolution,
-                                        args.margin, args.density_floor)
-    grid_Z.append(Z)
-    tf[e] = normalizer(y, args.norm)
-  grid_n = np.stack([np.where(np.isnan(Z), np.nan, tf[e](Z))
-                     for e, Z in zip(order, grid_Z)])
-  supported = np.all(np.isfinite(grid_n), axis=0)
-  Zmood = np.where(supported, mood(grid_n, positions, args.temp), np.nan)
-  return GX, GY, nan_blur(Zmood, args.surface_smooth)
+def build_mood_surface(X_raw, matrix, emotions, args):
+  """The repository's mood surface (surface/mood) over the PCA grid."""
+  m, *_ = mood_mod.mood(matrix, emotions, order=args.order or DEFAULT_ORDER)
+  GX, GY, Z, _ = mood_surface.fit(X_raw, m, args.mood_h, resolution=args.resolution)
+  return GX, GY, Z
 
 
 def main():
@@ -88,29 +80,27 @@ def main():
   ap.add_argument("--model", default="bge-m3")
   ap.add_argument("--emotion", default=None,
                   help="Draw over one emotion's landscape; default combined mood.")
-  ap.add_argument("--size", default=10, type=int)
-  ap.add_argument("--stride", default=5, type=int)
+  ap.add_argument("--size", default=DEFAULT_SIZE, type=int)
+  ap.add_argument("--stride", default=DEFAULT_STRIDE, type=int)
   ap.add_argument("--taus", nargs="+", type=float,
                   default=[0.0, 0.3, 0.6, 1.0, 1.6],
                   help="Tolerance sweep: 0 = straight geodesic, large = hugs arc.")
   ap.add_argument("--lift-tau", default=0.6, type=float,
                   help="Which tau to lift onto the terrain in the 3-D view.")
-  ap.add_argument("--representative", default="medoid", choices=["medoid", "mean"],
-                  help="Per-window point: 'medoid' is the most central real "
-                       "paragraph (always in a dense region, so it lands on the "
-                       "surface); 'mean' can fall in a void between clusters.")
+  ap.add_argument("--representative", default="mean", choices=["mean", "medoid"],
+                  help="Per-window point: 'mean' (as everywhere else) or 'medoid', "
+                       "the most central real paragraph.")
   # penalty / solver knobs (sensible defaults; rarely need changing)
   ap.add_argument("--resolution", default=260, type=int)
   ap.add_argument("--blur", default=1.2, type=float)
   # surface (drawing) knobs -- same protocol as arc_on_surface
   ap.add_argument("--hx", default=0.15, type=float)
   ap.add_argument("--hy", default=0.15, type=float)
-  ap.add_argument("--temp", default=0.3, type=float)
-  ap.add_argument("--norm", default="rank", choices=["rank", "zscore", "minmax"])
-  ap.add_argument("--surface-smooth", default=1.5, type=float)
+  ap.add_argument("--mood-h", default=0.2, type=float,
+                  help="Bandwidth of the mood surface (surface/mood).")
   ap.add_argument("--margin", default=0.05, type=float)
   ap.add_argument("--density-floor", default=5.0, type=float)
-  ap.add_argument("--alpha", default=3.0, type=float,
+  ap.add_argument("--alpha", default=DEFAULT_ALPHA, type=float,
                   help="Vertical exaggeration of the terrain in the 3-D view.")
   ap.add_argument("--order", nargs="+", default=None)
   args = ap.parse_args()
@@ -119,14 +109,7 @@ def main():
   emotions, matrix = load_scores(args.book, paragraphs)
   X_raw = np.asarray(load_pca(args.book, args.model), dtype=np.float64)[:, :2]
   n = len(X_raw)
-  order = args.order or [e for e in DEFAULT_ORDER if e in emotions]
-  order += [e for e in emotions if e not in order]
-  positions = np.linspace(0.0, 1.0, len(order))
-
   # The initial curve: one representative point per window, in the PCA plane.
-  # The mean of a window can land in the empty gap between clusters (off the
-  # surface); the medoid -- the window's most central actual paragraph -- is a
-  # real point in a dense region, so it always sits on the surface.
   windows = window_bounds(n, args.size, args.stride)
   if args.representative == "mean":
     arc = np.array([X_raw[s:e].mean(axis=0) for s, e in windows])
@@ -140,8 +123,7 @@ def main():
         f"stride {args.stride}); tau sweep {args.taus}")
 
   # The landscape, only for drawing. sfields carries what build_*_surface needs.
-  sargs = SimpleNamespace(hx=args.hx, hy=args.hy, temp=args.temp, norm=args.norm,
-                          surface_smooth=args.surface_smooth,
+  sargs = SimpleNamespace(hx=args.hx, hy=args.hy, mood_h=args.mood_h, order=args.order,
                           resolution=args.resolution, margin=args.margin,
                           density_floor=args.density_floor)
   if args.emotion:
@@ -149,7 +131,7 @@ def main():
       X_raw, matrix[:, emotions.index(args.emotion)], sargs)
     zlabel = args.emotion
   else:
-    GX, GY, Zsurf = build_mood_surface(X_raw, matrix, emotions, order, positions, sargs)
+    GX, GY, Zsurf = build_mood_surface(X_raw, matrix, emotions, sargs)
     zlabel = "mood"
 
   # Smooth the arc for each tau.
@@ -165,7 +147,8 @@ def main():
   # -- none of which the filenames beyond the tag record.
   tag = args.emotion or "mood"
   out_dir = paths.out_dir(args.book, args.model, os.path.join(paths.NARRATIVE_ARC_3D, paths.ARC_CURVE_SMOOTHING),
-                          {"w": args.size, "s": args.stride, "h": args.hx,
+                          {"w": args.size, "s": args.stride,
+                           "h": args.hx if args.emotion else args.mood_h,
                            "z": tag})
   paths.stamp(out_dir, __file__, args, stack="geometry.curve_smoothing",
               estimator="smooth_curve (distance-based, Pawellek 2024)",
@@ -235,7 +218,7 @@ def main():
   # the smoothed curve -- thin, coloured by the same progression.
   seg = np.stack([smooth3d[:-1], smooth3d[1:]], axis=1)
   lc = Line3DCollection(seg + [0, 0, lz], cmap="plasma", linewidth=1.6, zorder=7)
-  lc.set_array((prog[:-1] + prog[1:]) / 2)
+  lc.set_array(np.linspace(0, 1, len(seg)))
   ax3.add_collection3d(lc)
   ax3.set_xlabel("PC1"); ax3.set_ylabel("PC2"); ax3.set_zlabel(zlabel)
   ax3.set_xticklabels([]); ax3.set_yticklabels([])

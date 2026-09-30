@@ -23,8 +23,11 @@ And, under `geodesics/`, paths between paragraphs rather than along the arc:
 | `geodesic_arrows.py` | for each step where an emotion rises, the shortest path along the terrain between the two paragraphs; the strongest rises are drawn |
 
 The scripts share code: `arc_on_surface.py` and `arc_emotion_axis.py` are also
-imported by the others, which is why they sit together in one folder. The mood
-axis uses the repository's single mood definition, `surface/mood/mood.py`.
+imported by the others, which is why they sit together in one folder. Every mood
+here is the repository's single definition, `surface/mood/mood.py`, and the
+scripts share their defaults: windows of 40 paragraphs stepping by 20
+(`common/windows.py`), the window's mean point in the PCA plane, and vertical
+scale `alpha` = 1 (`geometry/mesh.py`).
 
 ## Notes
 

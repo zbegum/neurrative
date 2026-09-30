@@ -1,4 +1,5 @@
-"""What the windows are colored by.
+"""What the points are colored by: windows here, and single paragraphs in
+projection/ (common/embedding_common.py uses the same resolver).
 
 Emotions and chapters are pooled per window the same way the embeddings are, so a
 window's color describes the same span of text as its point.
@@ -15,14 +16,21 @@ COLOR_HELP = ("progression, chapter, emotions (one plot per emotion), "
 
 
 def resolve_colors(names, series):
-  """ColorSpecs for the windowed path, one per requested coloring, deduplicated."""
+  """ColorSpecs, one per requested coloring, deduplicated.
+
+  `series` is anything with `book`, `chapters`, `emotions`, `scores`,
+  `emotion(name)` and a length: a windowed Series, or single paragraphs. Its
+  optional `unit` ("window" by default) names what one point is.
+  """
+  unit = getattr(series, "unit", "window")
   specs = []
 
   for name in names:
-    if name == "progression":
+    # "paragraph" is the same coloring, under the name projection/ has always used.
+    if name in ("progression", "paragraph"):
       specs.append(ColorSpec(
-        "progression", np.arange(len(series)), "plasma",
-        "reading order (window)", None, None,
+        name, np.arange(len(series)), "plasma", f"reading order ({unit})",
+        None, None,
       ))
       continue
 

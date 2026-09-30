@@ -27,6 +27,7 @@ import data
 import geodesic
 import mood as mood_mod
 import paths
+from geometry.mesh import DEFAULT_ALPHA
 import plot
 import sampling
 import surface
@@ -196,12 +197,12 @@ def main():
                              "windows", "angles"])
     ap.add_argument("--book", default="alice_wonderland")
     ap.add_argument("--model", default="bge-m3")
-    ap.add_argument("--plane", default="chain_umap", choices=["pca", "chain_umap"])
+    ap.add_argument("--plane", default="pca", choices=["pca", "chain_umap"])
     ap.add_argument("--beta", default=2.0, type=float)
     ap.add_argument("--blend", default="banded", choices=mood_mod.BLENDS)
     ap.add_argument("--temp", default=0.15, type=float)
     ap.add_argument("--h", default=0.2, type=float)
-    ap.add_argument("--alpha", default=6.0, type=float)
+    ap.add_argument("--alpha", default=DEFAULT_ALPHA, type=float)
     ap.add_argument("--sampling", default="chapter_medoids")
     ap.add_argument("--n", default=60, type=int)
     ap.add_argument("--temps", nargs="+", type=float, default=[0.15, 0.3, 0.6, 1.0],

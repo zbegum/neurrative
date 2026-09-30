@@ -1,7 +1,7 @@
 """Load a book's paragraphs, emotion scores, chapters and 2D coordinates."""
 
 import glob
-import json
+import importlib.util
 import os
 
 import numpy as np
@@ -10,26 +10,19 @@ import paths
 
 ROOT = paths.ROOT
 
+# common/data.py, loaded by file: this module is also called `data`.
+_spec = importlib.util.spec_from_file_location(
+    "neurrative_common_data", os.path.join(ROOT, "common", "data.py"))
+common_data = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(common_data)
+
 
 def load_book(book):
-    """Return (paragraphs, emotions, scores, chapters, summaries)."""
-    with open(os.path.join(ROOT, "books", book, "processed.json")) as f:
-        processed = json.load(f)
-    paragraphs = processed["paragraphs"]
-    chapters = np.zeros(len(paragraphs), dtype=int)
-    for c in processed["chapters"]:
-        a, b = c["paragraph_range"]
-        chapters[a:b] = c["chapter_id"]
-
-    with open(os.path.join(ROOT, "books", book, "paragraph_scores.json")) as f:
-        records = json.load(f)
-    by_id = {r["paragraph_id"]: r for r in records}
-
-    emotions = sorted(by_id[paragraphs[0]["id"]]["scores"])
-    scores = np.array([[by_id[p["id"]]["scores"][e] for e in emotions]
-                       for p in paragraphs])
-    summaries = [by_id[p["id"]].get("summary", "") for p in paragraphs]
-    return paragraphs, emotions, scores, chapters, summaries
+  """Return (paragraphs, emotions, scores, chapters, summaries)."""
+  paragraphs = common_data.load_paragraphs(book)
+  emotions, scores = common_data.load_scores(book, paragraphs)
+  chapters = np.array([p["chapter_id"] for p in paragraphs], dtype=int)
+  return paragraphs, emotions, scores, chapters, common_data.load_summaries(book, paragraphs)
 
 
 def load_coords(book, model, plane="pca", beta=2.0):

@@ -18,6 +18,12 @@ from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 
 
+# Vertical exaggeration: how many plane units one unit of height is worth. There
+# is no natural value (mood and PCA coordinates have different units); 1 on the
+# PCA plane is the shared default of every script that meshes a surface.
+DEFAULT_ALPHA = 1.0
+
+
 def height_mesh(gx, gy, Z, mask, alpha):
   """Lift a masked grid to vertices and triangles.
 

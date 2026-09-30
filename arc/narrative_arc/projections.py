@@ -30,8 +30,9 @@ Projection = namedtuple("Projection", "name tag labels coords suffix info model"
                         defaults=(None,))
 
 
-def project_pca(pooled, n_components):
-  pca = PCA(n_components=n_components)
+def project_pca(pooled, n_components, seed=0):
+  # Seeded: for more than 500 rows sklearn picks a randomized SVD.
+  pca = PCA(n_components=n_components, random_state=seed)
   coords = pca.fit_transform(pooled)
   var = pca.explained_variance_ratio_
   print(f"  PCA: explained variance {var.sum():.1%} over {n_components} components")
@@ -84,7 +85,7 @@ def project(pooled, methods=METHODS, n_components=2, neighbors=15,
   out = []
   for method in methods:
     if method == "pca":
-      out.append(project_pca(pooled, n_components))
+      out.append(project_pca(pooled, n_components, seed))
     elif method == "umap":
       out.append(project_umap(pooled, n_components, neighbors, min_dist, seed))
     elif method == "tsne":

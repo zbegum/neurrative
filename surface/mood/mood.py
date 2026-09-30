@@ -1,9 +1,10 @@
 """Collapse six emotion scores into one mood value on a heavy -> light spectrum.
 
-This is the single definition of "mood" in the repository. The mood surface
-(this folder) uses `mood()` per paragraph; the arc-on-surface scripts
-(`arc_on_surface/arc_emotion_axis.py` and its grids) use `normalizer()` and
-`softmax_position()` per grid cell of six fitted surfaces.
+This is the single definition of "mood" in the repository. Every script that
+draws a mood calls `mood()` per paragraph and, where it needs a surface, fits
+one surface to those values (`surface.py`): this folder, the arc-on-surface
+scripts (`arc_emotion_axis.py`, its grids, `arc_smooth.py`,
+`narrative_arc_3d.py`), the interactive mood page and docs/blog.
 
 The spectrum orders the emotions from heavy to light; a paragraph's mood is
 where it sits on that line. Before blending, each emotion is normalized over

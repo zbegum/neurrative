@@ -31,17 +31,15 @@ import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
-from umap import UMAP
 
 # The repository root and common/ on the path, wherever this script lives.
 _ROOT = os.path.dirname(os.path.abspath(__file__))
 while not os.path.isdir(os.path.join(_ROOT, "common")):
   _ROOT = os.path.dirname(_ROOT)
-sys.path[1:1] = [_ROOT, os.path.join(_ROOT, "common")]
+sys.path[1:1] = [_ROOT, os.path.join(_ROOT, "common"), os.path.join(_ROOT, "arc")]
 
 import paths
+from narrative_arc.projections import project as project_methods
 from data import load_paragraphs, load_scores
 
 # A single sequential ramp for every emotion: the score is a magnitude, and
@@ -50,53 +48,16 @@ CMAP = "viridis"
 
 
 def project(embeddings, args, n_components):
-  """Reduce the embeddings to n_components dimensions.
+  """Reduce the embeddings to n_components dimensions (narrative_arc.projections).
 
   Fit at the dimensionality we actually plot. UMAP and t-SNE optimize a layout
   for a given target dimension, so the first two columns of a 3-component fit
   are not the 2-component fit -- reusing them across modes would quietly plot a
-  layout nobody asked for.
+  layout nobody asked for. Returns (coords, axis labels, filename suffix).
   """
-  if args.proj == "pca":
-    pca = PCA(n_components=n_components, random_state=args.seed)
-    coords = pca.fit_transform(embeddings)
-    var = pca.explained_variance_ratio_
-    labels = [f"PC{i + 1} ({v:.1%} var)" for i, v in enumerate(var)]
-    print(f"  explained variance: {var.sum():.1%} over {n_components} components")
-    # PCA is deterministic and its components are nested, so there is nothing
-    # parameter-dependent to tag.
-    suffix = ""
-
-  elif args.proj == "umap":
-    umap = UMAP(
-      n_components=n_components,
-      n_neighbors=args.neighbors,
-      min_dist=args.min_dist,
-      random_state=args.seed,
-    )
-    coords = umap.fit_transform(embeddings)
-    labels = [f"UMAP-{i + 1}" for i in range(n_components)]
-    # UMAP layout depends on its parameters, so tag filenames to avoid
-    # overwriting runs with different settings.
-    suffix = f"_n{args.neighbors}_d{args.min_dist}_s{args.seed}"
-
-  else:
-    if args.perplexity >= len(embeddings):
-      raise ValueError(
-        f"perplexity ({args.perplexity}) must be < number of paragraphs "
-        f"({len(embeddings)})."
-      )
-    tsne = TSNE(
-      n_components=n_components,
-      perplexity=args.perplexity,
-      random_state=args.seed,
-    )
-    coords = tsne.fit_transform(embeddings)
-    labels = [f"t-SNE-{i + 1}" for i in range(n_components)]
-    # t-SNE layout depends on perplexity and the seed, so tag the filenames.
-    suffix = f"_p{args.perplexity}_s{args.seed}"
-
-  return coords, labels, suffix
+  (p,) = project_methods(embeddings, [args.proj], n_components, args.neighbors,
+                         args.min_dist, args.perplexity, args.seed)
+  return p.coords, list(p.labels), p.suffix
 
 
 def static_plot(coords, scores, label, labels, title, output_path):

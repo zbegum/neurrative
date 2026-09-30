@@ -12,10 +12,7 @@ overwrite each other. `stamp()` writes a params.json beside the outputs with the
 full argument list, so a figure can always be traced back to how it was made.
 """
 
-import json
 import os
-import subprocess
-from datetime import datetime, timezone
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # The books live at the repository root, shared with the rest of neurrative.
@@ -39,25 +36,20 @@ def out_dir(output_root, book, model, *parts, create=True):
   return path
 
 
-def _git_commit():
-  try:
-    return subprocess.run(
-      ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT,
-      capture_output=True, text=True, check=True,
-    ).stdout.strip() or None
-  except (OSError, subprocess.CalledProcessError):
-    return None
-
-
 def stamp(directory, script, args=None, **extra):
-  """Write `params.json`: the script, its arguments, the commit, and `extra`."""
-  record = {
-    "script": os.path.relpath(os.path.abspath(script), ROOT),
-    "written": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-    "commit": _git_commit(),
-  }
-  if args is not None:
-    record["args"] = vars(args)
-  record.update(extra)
-  with open(os.path.join(directory, "params.json"), "w") as f:
-    json.dump(record, f, indent=2, default=str)
+  """Write `params.json` beside the outputs: the repository-wide format.
+
+  One implementation, in common/paths.py, so every run in the repository
+  records itself the same way.
+  """
+  return _repo_paths().stamp(directory, script, args, **extra)
+
+
+def _repo_paths():
+  """common/paths.py, loaded by file so its name cannot clash with this module."""
+  import importlib.util
+  spec = importlib.util.spec_from_file_location(
+    "neurrative_common_paths", os.path.join(os.path.dirname(ROOT), "common", "paths.py"))
+  module = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(module)
+  return module

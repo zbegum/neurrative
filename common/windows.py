@@ -22,10 +22,13 @@ pooled emotion scores were re-derived from scratch by every script that wanted
 them, and could not be cited on their own. `build()` computes the series once and
 `save()` writes it to
 
-    arc/output/<book>/<model>/windows/w40_s20[_l2on]/series.npz
+    arc/output/<book>/<model>/windows/w40_s20[_l2]/series.npz
 
 alongside the usual `params.json`. `load()` reads it back; `series()` reads it if
 it is there and builds it if it is not, so a caller never has to know which.
+
+The implementation lives in the arc package (arc/narrative_arc/windows.py);
+this module fixes its data and output folders for the rest of the repository.
 
 The canonical setting is w40 s20 -- windows of 40 paragraphs stepping by 20, i.e.
 half-overlapping. That is what `--size`/`--stride` default to here.
@@ -43,149 +46,47 @@ import argparse
 import os
 import sys
 
-import numpy as np
-
 import paths
-from data import load_paragraphs, load_scores
 
 # One definition of a window, shared with the arc package in arc/: the bounds,
 # centres and pooling are imported from there rather than kept as a copy.
 sys.path.insert(1, os.path.join(paths.ROOT, "arc"))
-from narrative_arc.windows import pool, window_bounds, window_centers  # noqa: E402
+# Windows of 40 paragraphs stepping by 20 (DEFAULT_SIZE / DEFAULT_STRIDE): wide
+# enough that a window is a scene rather than a remark, and half-overlapping so
+# the series moves smoothly instead of jumping.
+from narrative_arc.windows import (DEFAULT_SIZE, DEFAULT_STRIDE, pool,  # noqa: E402
+                                   window_bounds, window_centers)
 
-# Windows of 40 paragraphs stepping by 20. Wide enough that a window is a scene
-# rather than a remark, and half-overlapping so consecutive windows share half
-# their text and the series moves smoothly instead of jumping.
-DEFAULT_SIZE = 40
-DEFAULT_STRIDE = 20
+# One implementation of the saved series, in the arc package: these wrappers
+# only fix the data directory (books/) and the output root (arc/output/).
+from narrative_arc import windows as _arc  # noqa: E402
+from narrative_arc import paths as _arc_paths  # noqa: E402
 
-SERIES_FILE = "series.npz"
-
-
-class Series:
-  """One book × model as an ordered sequence of windows.
-
-  Attributes, all row-aligned and in reading order:
-
-    starts, stops   the paragraph range [start, stop) each window covers -- the
-                    join back to `books/<book>/processed.json`
-    centers         the middle paragraph index of each window, possibly .5
-    pooled          (n_windows, d) mean-pooled embeddings, the series itself
-    emotions        the emotion names, in the order `scores` columns are in
-    scores          (n_windows, n_emotions) mean-pooled annotation scores, or
-                    None when the book has no paragraph_scores.json
-    chapters        the chapter (or act) of each window's middle paragraph
-    center_ids      the paragraph id at each centre, so a window on a plot can be
-                    traced back to text without recomputing the bounds
-  """
-
-  def __init__(self, book, model, size, stride, l2, starts, stops, centers,
-               pooled, emotions, scores, chapters, center_ids):
-    self.book, self.model = book, model
-    self.size, self.stride, self.l2 = size, stride, l2
-    self.starts, self.stops, self.centers = starts, stops, centers
-    self.pooled = pooled
-    self.emotions, self.scores = emotions, scores
-    self.chapters, self.center_ids = chapters, center_ids
-
-  def __len__(self):
-    return len(self.starts)
-
-  @property
-  def windows(self):
-    """The (start, stop) pairs, for the callers that still want the list form."""
-    return list(zip(self.starts.tolist(), self.stops.tolist()))
-
-  def emotion(self, name):
-    """The pooled series for one emotion, as a 1-D array over windows."""
-    if self.scores is None:
-      raise ValueError(f"{self.book} has no scores; cannot read {name!r}.")
-    if name not in self.emotions:
-      raise ValueError(f"Unknown emotion {name!r}. Have: {', '.join(self.emotions)}")
-    return self.scores[:, self.emotions.index(name)]
+Series = _arc.Series
+SERIES_FILE = _arc.SERIES_FILE
+DATA_DIR = os.path.join(paths.ROOT, "books")
+OUTPUT_DIR = _arc_paths.DEFAULT_OUTPUT_DIR
 
 
 def build(book, model, size=DEFAULT_SIZE, stride=DEFAULT_STRIDE, l2=False):
   """Compute the series from `books/`, without touching `output/`."""
-  paragraphs = load_paragraphs(book)
-  embeddings = np.load(
-    os.path.join(paths.ROOT, "books", book, "embeddings", model, "embeddings.npy")
-  )
-  if len(embeddings) != len(paragraphs):
-    raise ValueError(
-      f"embeddings ({len(embeddings)}) and paragraphs ({len(paragraphs)}) mismatch."
-    )
-
-  windows = window_bounds(len(paragraphs), size, stride)
-  centers = window_centers(windows)
-  mid = centers.round().astype(int)
-
-  # Scores are optional: the geometry runs on embeddings alone, and a book can be
-  # windowed before it has been annotated.
-  try:
-    emotions, matrix = load_scores(book, paragraphs)
-    scores = pool(matrix, windows)
-  except FileNotFoundError:
-    emotions, scores = [], None
-
-  return Series(
-    book, model, size, stride, l2,
-    starts=np.array([s for s, _ in windows]),
-    stops=np.array([e for _, e in windows]),
-    centers=centers,
-    pooled=pool(embeddings, windows, l2),
-    emotions=emotions,
-    scores=scores,
-    chapters=np.array([paragraphs[i]["chapter_id"] for i in mid]),
-    center_ids=np.array([paragraphs[i]["id"] for i in mid]),
-  )
+  return _arc.build(DATA_DIR, book, model, size, stride, l2)
 
 
 def series_dir(book, model, size=DEFAULT_SIZE, stride=DEFAULT_STRIDE, l2=False,
                create=True):
-  """`arc/output/<book>/<model>/windows/w40_s20[_l2on]/`."""
-  return paths.out_dir(book, model, paths.WINDOWS,
-                       {"w": size, "s": stride, "l2": "on" if l2 else None},
-                       create=create)
+  """`arc/output/<book>/<model>/windows/w40_s20[_l2]/`."""
+  return _arc.series_dir(OUTPUT_DIR, book, model, size, stride, l2, create)
 
 
 def save(series, args=None):
   """Write `series.npz` (+ `params.json`) and return the directory."""
-  out = series_dir(series.book, series.model, series.size, series.stride,
-                   series.l2)
-  arrays = dict(
-    starts=series.starts, stops=series.stops, centers=series.centers,
-    pooled=series.pooled, chapters=series.chapters,
-    center_ids=series.center_ids, emotions=np.array(series.emotions),
-  )
-  if series.scores is not None:
-    arrays["scores"] = series.scores
-  np.savez(os.path.join(out, SERIES_FILE), **arrays)
-
-  paths.stamp(out, __file__, args, book=series.book, model=series.model,
-              size=series.size, stride=series.stride, l2=series.l2,
-              n_windows=len(series), n_dims=int(series.pooled.shape[1]),
-              emotions=list(series.emotions),
-              pooling="mean over the window's rows"
-                      + (", L2-normalized first" if series.l2 else ""))
-  return out
+  return _arc.save(series, OUTPUT_DIR, __file__, args)
 
 
 def load(book, model, size=DEFAULT_SIZE, stride=DEFAULT_STRIDE, l2=False):
   """Read a saved series, or None if it has not been built."""
-  path = os.path.join(series_dir(book, model, size, stride, l2, create=False),
-                      SERIES_FILE)
-  if not os.path.exists(path):
-    return None
-
-  z = np.load(path, allow_pickle=False)
-  return Series(
-    book, model, size, stride, l2,
-    starts=z["starts"], stops=z["stops"], centers=z["centers"],
-    pooled=z["pooled"], emotions=[str(e) for e in z["emotions"]],
-    scores=z["scores"] if "scores" in z.files else None,
-    chapters=z["chapters"], center_ids=z["center_ids"],
-  )
+  return _arc.load(OUTPUT_DIR, book, model, size, stride, l2)
 
 
 def series(book, model, size=DEFAULT_SIZE, stride=DEFAULT_STRIDE, l2=False,

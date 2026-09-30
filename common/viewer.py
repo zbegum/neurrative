@@ -10,6 +10,7 @@ file: common/web/viewer.css and viewer.js are inlined at build time.
 import glob
 import json
 import os
+import sys
 
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
@@ -17,6 +18,11 @@ from scipy.ndimage import distance_transform_edt, gaussian_filter1d
 
 import paths
 from geometry.smoothers import gaussian_nw
+
+# The book readers, from the arc package (not `import data`: the mood viewer's own
+# folder has a data.py that would shadow common/data.py).
+sys.path.insert(1, os.path.join(paths.ROOT, "arc"))
+from narrative_arc import data as arc_data  # noqa: E402
 
 WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 EMOTIONS = ["wonder", "curiosity", "humor", "confusion", "danger", "sadness"]
@@ -42,18 +48,18 @@ def pca_coords(book, model):
 
 def reading(book):
   """Text, chapter per paragraph, chapter names, and the (n, 6) score matrix."""
-  processed = json.load(open(os.path.join(paths.ROOT, "books", book, "processed.json")))
-  paras = processed["paragraphs"]
+  data_dir = os.path.join(paths.ROOT, "books")
+  paras, chapter_list = arc_data.load_book(data_dir, book)
   chapters = {}
-  for c in processed["chapters"]:
+  for c in chapter_list:
     t = (c.get("title") or "").strip()
     chapters[str(c["chapter_id"])] = (t if t and not t.startswith("[")
                                       else f"Chapter {c['chapter_number']}")
-  scores_path = os.path.join(paths.ROOT, "books", book, "paragraph_scores.json")
-  S = None
-  if os.path.exists(scores_path):
-    by_id = {s["paragraph_id"]: s["scores"] for s in json.load(open(scores_path))}
-    S = np.array([[by_id[p["id"]][e] for e in EMOTIONS] for p in paras])
+  try:
+    emotions, M = arc_data.load_scores(data_dir, book, paras)
+    S = M[:, [emotions.index(e) for e in EMOTIONS]]
+  except FileNotFoundError:
+    S = None
   return {
     "title": TITLES.get(book, book),
     "text": [p["text"] for p in paras],
@@ -106,9 +112,16 @@ def resample(npz, gx, gy):
   return out.ravel()
 
 
-def saved_field(book, model, figure, emotion):
-  """The newest saved field for `figure` (e.g. surface/gaussian_nw), or None."""
+def saved_field(book, model, figure, emotion, variant=None):
+  """The saved field for `figure` (e.g. surface/gaussian_nw), or None.
+
+  With `variant`, only that variant folder is read, so another run with other
+  settings cannot replace the surface the page shows. Without it, the newest.
+  """
   base = paths.out_dir(book, model, figure, create=False)
+  if variant is not None:
+    path = os.path.join(base, variant, f"field_{emotion}_pca.npz")
+    return path if os.path.exists(path) else None
   hits = sorted(glob.glob(os.path.join(base, "**", f"field_{emotion}_pca.npz"),
                           recursive=True), key=os.path.getmtime)
   return hits[-1] if hits else None

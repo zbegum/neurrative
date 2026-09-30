@@ -9,13 +9,13 @@ combined *mood* surface (the six emotions collapsed onto one labelled axis, as i
 emotion_axis_3d.png) with the story arc riding it. So the grid shows how the
 choice of smoother and bandwidth reshapes the mood landscape the arc travels.
 
-Each cell fits six emotion surfaces with that (smoother, bandwidth), rank-blends
-them into the mood height, and drapes the arc on top. loess and local_linear fit
+Each cell fits the repository's per-paragraph mood (surface/mood/mood.py) with
+that (smoother, bandwidth) and lifts the arc onto it. loess and local_linear fit
 a weighted regression per grid point, so this is the slow grid -- run it in the
 background.
 
 Lands in arc_on_surface/output/<book>/<model>/arc_on_surface/<variant>/emotion_axis_smoother_grid.png,
-the variant naming the arc and blend settings (the swept smoothers and bandwidths
+the variant naming the windows and the blend (the swept smoothers and bandwidths
 are fixed in METHODS below, so they cannot differ between runs).
 
 Example:
@@ -41,9 +41,9 @@ import paths
 from data import load_paragraphs, load_scores
 from smooth_common import Standardizer, load_pca, fit_grid
 from geometry.smoothers import gaussian_nw, epanechnikov_nw, local_linear, loess
-from arc_on_surface import window_bounds
-from arc_emotion_axis import (normalizer, mood, smooth1d, nan_blur,
-                              sample_surface, DEFAULT_ORDER)
+from arc_emotion_axis import lifted_arc, DEFAULT_ORDER
+from surface.mood import mood as mood_mod
+from windows import DEFAULT_SIZE, DEFAULT_STRIDE, window_bounds
 
 # One row per smoother; three columns = that method's bandwidth ladder. The
 # ladders match the bandwidth_grid README (Epanechnikov's cutoff needs ~4x the
@@ -84,20 +84,18 @@ def surface_at(predict, params, xs, ys, X_raw, y_raw, Q):
 
 def variant_params(args):
   """The knobs that change this grid. METHODS fixes the swept smoothers and
-  bandwidths in code, so only the per-run arc and blend settings vary."""
-  return {"w": args.size, "s": args.stride, "t": args.temp, "norm": args.norm}
+  bandwidths in code, so only the windows and the blend vary."""
+  return {"w": args.size, "s": args.stride, "blend": args.blend}
 
 
 def main():
   ap = argparse.ArgumentParser()
   ap.add_argument("--book", default="alice_wonderland")
   ap.add_argument("--model", default="bge-m3")
-  ap.add_argument("--size", default=10, type=int)
-  ap.add_argument("--stride", default=5, type=int)
-  ap.add_argument("--temp", default=0.3, type=float)
-  ap.add_argument("--norm", default="rank", choices=["rank", "zscore", "minmax"])
-  ap.add_argument("--arc-smooth", default=3.0, type=float)
-  ap.add_argument("--surface-smooth", default=1.5, type=float)
+  ap.add_argument("--size", default=DEFAULT_SIZE, type=int)
+  ap.add_argument("--stride", default=DEFAULT_STRIDE, type=int)
+  ap.add_argument("--blend", default="banded", choices=mood_mod.BLENDS)
+  ap.add_argument("--arc-smooth", default=1.0, type=float)
   ap.add_argument("--resolution", default=60, type=int)
   ap.add_argument("--margin", default=0.05, type=float)
   ap.add_argument("--density-floor", default=5.0, type=float)
@@ -108,10 +106,8 @@ def main():
   emotions, matrix = load_scores(args.book, paragraphs)
   X_raw = np.asarray(load_pca(args.book, args.model), dtype=np.float64)[:, :2]
   n = len(X_raw)
-  order = args.order or [e for e in DEFAULT_ORDER if e in emotions]
-  order += [e for e in emotions if e not in order]
-  positions = np.linspace(0.0, 1.0, len(order))
-  tf = {e: normalizer(matrix[:, emotions.index(e)], args.norm) for e in order}
+  m, order, positions, _ = mood_mod.mood(matrix, emotions,
+                                         order=args.order or DEFAULT_ORDER, blend=args.blend)
 
   windows = window_bounds(n, args.size, args.stride)
   arc_xy = np.array([X_raw[s:e].mean(axis=0) for s, e in windows])
@@ -129,30 +125,14 @@ def main():
   fig = plt.figure(figsize=(5.0 * nc, 4.4 * nr))
   for r, (name, predict, param_cols, labels) in enumerate(METHODS):
     for c, (params, label) in enumerate(zip(param_cols, labels)):
-      GX = GY = None
-      grid_Z, arc_h = [], []
-      for e in order:
-        y = matrix[:, emotions.index(e)]
-        GX, GY, Z, xs, ys = fit_surface(predict, params, X_raw, y,
-                                        args.resolution, args.margin, args.density_floor)
-        grid_Z.append(Z)
-        arc_h.append(surface_at(predict, params, xs, ys, X_raw, y, arc_xy))
-      grid_n = np.stack([np.where(np.isnan(Z), np.nan, tf[e](Z))
-                         for e, Z in zip(order, grid_Z)])
-      arc_n = np.stack([tf[e](hh) for e, hh in zip(order, arc_h)])
-      all_supported = np.all(np.isfinite(grid_n), axis=0)
-      mood_grid = np.where(all_supported, mood(grid_n, positions, args.temp), np.nan)
-      mood_grid = nan_blur(mood_grid, args.surface_smooth)
-      mood_arc = mood(arc_n, positions, args.temp)
+      GX, GY, mood_grid, xs, ys = fit_surface(predict, params, X_raw, m, args.resolution,
+                                              args.margin, args.density_floor)
+      height = lambda Q: surface_at(predict, params, xs, ys, X_raw, m, Q)
 
       ax = fig.add_subplot(nr, nc, r * nc + c + 1, projection="3d")
       ax.plot_surface(GX, GY, mood_grid, cmap="magma", vmin=0, vmax=1,
                       linewidth=0, antialiased=True, alpha=0.4, rstride=2, cstride=2)
-      ax_s = smooth1d(arc_xy[:, 0], args.arc_smooth)
-      ay_s = smooth1d(arc_xy[:, 1], args.arc_smooth)
-      az_on = sample_surface(GX, GY, mood_grid, ax_s, ay_s)
-      az_s = np.where(np.isfinite(az_on), az_on, smooth1d(mood_arc, args.arc_smooth))
-      pts = np.column_stack([ax_s, ay_s, az_s + 0.01])
+      pts = lifted_arc(arc_xy, height, args.arc_smooth)
       seg = np.stack([pts[:-1], pts[1:]], axis=1)
       lc = Line3DCollection(seg, cmap="plasma", linewidth=2.4, zorder=5)
       lc.set_array(np.linspace(0, 1, len(pts) - 1))

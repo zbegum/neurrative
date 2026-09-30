@@ -49,13 +49,7 @@ sys.path[1:1] = [_ROOT, os.path.join(_ROOT, "common")]
 import paths
 from data import load_paragraphs
 from windows import pool, window_bounds
-
-
-def step_autocorr(xy):
-  """Mean cosine between consecutive unit steps -- higher = smoother turning."""
-  steps = np.diff(xy, axis=0)
-  u = steps / np.clip(np.linalg.norm(steps, axis=1, keepdims=True), 1e-12, None)
-  return float(np.mean(np.sum(u[:-1] * u[1:], axis=1)))
+from arc_comparison import step_autocorr
 
 
 def fit(method, X, seed):

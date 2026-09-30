@@ -7,8 +7,8 @@ value on a heavy → light spectrum,
     sadness → danger → confusion → curiosity → wonder → humor
      (low)                                              (high)
 
-and one Gaussian surface is fitted to those values over a 2-D layout (PCA or
-chain-UMAP). The height then reads directly as an emotion, and the narrative
+and one Gaussian surface is fitted to those values over a 2-D layout (PCA by
+default, or chain-UMAP). The height then reads directly as an emotion, and the narrative
 arc is drawn across it as a chain of paragraphs joined by **geodesics**: the
 shortest paths along the surface, so the route bends around emotional hills
 instead of cutting through them.
@@ -33,9 +33,10 @@ Comparison grids:
     python surface/mood/grids.py --grid windows     # the arc for each saved window setting
     python surface/mood/grids.py --grid angles      # one arc from four cameras
 
-Everything takes `--book` and `--model`. The default layout is chain-UMAP, so
-run `projection/chain_umap.py --beta 2` first (or pass `--plane pca` after
-`projection/embedding.py`). `--grid windows` also needs `common/windows.py`.
+Everything takes `--book` and `--model`. The default layout is the PCA plane,
+so run `projection/embedding.py` first (or pass `--plane chain_umap` after
+`projection/chain_umap.py --beta 2`). `--grid windows` also needs
+`common/windows.py`.
 
 Output: `surface/mood/output/<book>/<model>/`.
 
@@ -43,7 +44,7 @@ Output: `surface/mood/output/<book>/<model>/`.
 
 | file | what |
 |---|---|
-| `mood.py` | **the single definition of mood in the repository**: the spectrum, the per-emotion normalizer and the four blends. `arc_on_surface/` imports it too. |
+| `mood.py` | **the single definition of mood in the repository**: the spectrum, the per-emotion normalizer and the four blends. Every script that draws a mood uses it, including `arc_on_surface/`. |
 | `surface.py` | fit the Gaussian surface and evaluate its height anywhere |
 | `sampling.py` | pick which paragraphs the arc runs through |
 | `geodesic.py` | join waypoints with exact geodesics along the surface |
@@ -61,9 +62,13 @@ Output: `surface/mood/output/<book>/<model>/`.
   lets the data choose the axis.
 - **Normalizer** (`--norm`): each emotion is made comparable before blending.
   `rank` (default) uses percentiles, and tied scores share their average rank.
-- `--plane chain_umap --beta 2` spreads the paragraphs more evenly than PCA.
+- `--plane chain_umap --beta 2` spreads the paragraphs more evenly than PCA,
+  but only PCA is a metric plane, so lengths and geodesics mean most there.
 - `--legs geodesic` is the shortest path along the surface; `--alpha` is the
-  height-to-plane exchange rate that defines "shortest".
+  height-to-plane exchange rate that defines "shortest". The default, 1, is the
+  repository-wide default (`geometry/mesh.py`) and is meant for the PCA plane;
+  chain-UMAP coordinates are about ten times larger, so use a larger `--alpha`
+  there (6 was the old default).
 - `--mask-floor` (a support percentile) cuts holes where paragraphs are sparse;
   off by default, so the surface covers the whole plane.
 

@@ -7,10 +7,10 @@ units. Here the third axis carries a real, metric quantity so the story becomes
 a curve rising and falling over the semantic map. What that quantity is is up
 to --z-mode:
 
-  spectrum (default)  the emotions laid out in a fixed mood order (dark->light);
-                      the height is the score-weighted position of the window's
-                      emotional blend on that line, and the z-ticks are the
-                      emotion names -- so you read the emotion straight off z.
+  spectrum (default)  the repository's mood (surface/mood/mood.py) on the
+                      sadness -> humor spectrum: each paragraph's mood, read at
+                      the window the same way the emotions are. The z-ticks are
+                      the emotion names, so you read the mood straight off z.
   an emotion name     that one emotion's score (0..1) -- a single clean arc,
                       e.g. --z-mode sadness for the sadness arc.
   pc1                 the first principal component of the six emotions: the one
@@ -60,25 +60,25 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
-from umap import UMAP
 
 
 # The repository root and common/ on the path, wherever this script lives.
 _ROOT = os.path.dirname(os.path.abspath(__file__))
 while not os.path.isdir(os.path.join(_ROOT, "common")):
   _ROOT = os.path.dirname(_ROOT)
-sys.path[1:1] = [_ROOT, os.path.join(_ROOT, "common")]
+sys.path[1:1] = [_ROOT, os.path.join(_ROOT, "common"), os.path.join(_ROOT, "arc")]
 
 import paths
+from narrative_arc.projections import project as project_methods
 from data import load_paragraphs, load_scores
-from windows import pool as pool_embeddings, window_bounds, window_centers
+from windows import (DEFAULT_SIZE, DEFAULT_STRIDE, pool as pool_embeddings,
+                     window_bounds, window_centers)
 from geometry.scalar_field import (
   bandwidth_candidates, loo_bandwidth, nadaraya_watson,
 )
 from geometry.smoothers import SMOOTHERS
 from smooth_common import Standardizer, fit_grid, tune
-from surface.mood.mood import SPECTRUM
+from surface.mood import mood as mood_mod
 from surface.kernel.gaussian import GRID as GAUSSIAN_GRID
 from surface.kernel.epanechnikov import GRID as EPANECHNIKOV_GRID
 from surface.kernel.local_linear import GRID as LOCAL_LINEAR_GRID
@@ -92,13 +92,6 @@ def progression(n):
   """Each of n windows' place in the book, 0 at the first and 1 at the last."""
   return np.linspace(0.0, 1.0, n)
 
-# The six emotions laid out as a mood spectrum, darkest (bottom) to lightest
-# (top). The z = "spectrum" mode reads each window's height as the score-weighted
-# position of its emotional blend along this line, so low = dark/tense stretches,
-# high = light/funny ones, and a mixed stretch sits in between. The z-ticks are
-# labelled with these names, so the height is read directly off the spectrum.
-# The same order as every other mood axis in the repository (surface/mood/mood.py).
-EMOTION_SPECTRUM = SPECTRUM
 
 # The terrain smoothers, with the same tuning ladders bandwidth_grid.py uses --
 # hx/hy are in standard deviations of the standardized coordinates, so a ladder
@@ -116,22 +109,9 @@ TERRAIN_GRIDS = {
 
 def project(embeddings, proj, args):
   """2-D layout of the pooled windows. Returns (coords, xlabel, ylabel, tag)."""
-  if proj == "pca":
-    pca = PCA(n_components=2)
-    coords = pca.fit_transform(embeddings)
-    var = pca.explained_variance_ratio_
-    print(f"  PCA: {var.sum():.1%} var over 2 components")
-    return coords, f"PC1 ({var[0]:.1%} var)", f"PC2 ({var[1]:.1%} var)", ""
-
-  if proj == "umap":
-    coords = UMAP(n_components=2, n_neighbors=args.neighbors,
-                  min_dist=args.min_dist, random_state=args.seed).fit_transform(embeddings)
-    return coords, "UMAP-1", "UMAP-2", f"_n{args.neighbors}_d{args.min_dist}_s{args.seed}"
-
-  perplexity = min(args.perplexity, len(embeddings) - 1)
-  coords = TSNE(n_components=2, perplexity=perplexity,
-                random_state=args.seed).fit_transform(embeddings)
-  return coords, "t-SNE-1", "t-SNE-2", f"_p{perplexity}_s{args.seed}"
+  (p,) = project_methods(embeddings, [proj], 2, args.neighbors, args.min_dist,
+                         args.perplexity, args.seed)
+  return p.coords, p.labels[0], p.labels[1], p.suffix
 
 
 def smooth_emotions(matrix, centers, bandwidth):
@@ -184,9 +164,13 @@ def window_emotions(book, paragraphs, windows, bandwidth):
                narrower than the window and so *rougher* -- see the caveat above);
     a float -- Gaussian at that bandwidth in paragraphs.
 
-  Returns (emotions, pooled).
+  The paragraphs' mood (surface/mood/mood.py) is read at each window the same
+  way, as one more column. Returns (emotions, pooled, mood, spectrum) where
+  spectrum is (order, positions) for labelling the mood axis.
   """
-  emotions, matrix = load_scores(book, paragraphs)
+  emotions, scores = load_scores(book, paragraphs)
+  m, order, positions, _ = mood_mod.mood(scores, emotions)
+  matrix = np.column_stack([scores, m])
 
   if bandwidth is None:
     pooled = np.array([matrix[s:e].mean(axis=0) for s, e in windows])
@@ -195,15 +179,15 @@ def window_emotions(book, paragraphs, windows, bandwidth):
       size = windows[0][1] - windows[0][0]
       bandwidth = size / 2.0
     elif bandwidth == "loo":
-      bandwidth = loo_emotion_bandwidth(matrix)
+      bandwidth = loo_emotion_bandwidth(scores)
     pooled = smooth_emotions(matrix, window_centers(windows), bandwidth)
     print(f"  emotion signal: Gaussian over reading position, "
           f"sigma {bandwidth:.1f} paragraphs")
 
-  return emotions, pooled
+  return emotions, pooled[:, :-1], pooled[:, -1], (order, positions)
 
 
-def z_axis(emotions, pooled, z_mode):
+def z_axis(emotions, pooled, mood, spectrum, z_mode):
   """The height each window sits at, and how to label and scale that axis.
 
   The six emotions are six numbers per window; the z-axis is one. This chooses
@@ -215,11 +199,10 @@ def z_axis(emotions, pooled, z_mode):
 
     an emotion name -- that one emotion's score (0..1): a single clean arc
                        (e.g. --z-mode sadness for the sadness arc).
-    "spectrum"      -- the emotions laid out in a fixed mood order (EMOTION_
-                       SPECTRUM, dark->light) and the height is the score-
-                       weighted position of the window's emotional blend on that
-                       line (0..1). The axis ticks are the emotion names, so the
-                       height reads directly as "which emotion-region is this".
+    "spectrum"      -- the window's mood (surface/mood/mood.py), 0..1 on the
+                       sadness -> humor spectrum. The axis ticks are the emotion
+                       names, so the height reads as "which emotion-region is
+                       this".
     "pc1"           -- first principal component of the six emotion signals: the
                        single axis explaining the most emotional variation in
                        THIS book, normalized to [-1, 1] and oriented so its
@@ -231,23 +214,9 @@ def z_axis(emotions, pooled, z_mode):
             (0.0, 1.0), (0.0, 1.0), None)
 
   if z_mode == "spectrum":
-    missing = [e for e in emotions if e not in EMOTION_SPECTRUM]
-    if missing:
-      raise ValueError(
-        f"EMOTION_SPECTRUM has no position for {missing}; it lists "
-        f"{EMOTION_SPECTRUM}."
-      )
-    # Each emotion's fixed slot on the [0,1] line, then the window's height is
-    # the score-weighted mean slot -- the emotional centre of mass on the
-    # spectrum. Normalizing by the total score means only the *balance* of
-    # emotions sets the position, not their raw intensity.
-    n = len(EMOTION_SPECTRUM)
-    pos_of = {e: i / (n - 1) for i, e in enumerate(EMOTION_SPECTRUM)}
-    positions = np.array([pos_of[e] for e in emotions])   # aligned to columns
-    denom = pooled.sum(axis=1)
-    z = (pooled * positions).sum(axis=1) / np.where(denom > 1e-9, denom, 1.0)
-    ticks = ([pos_of[e] for e in EMOTION_SPECTRUM], list(EMOTION_SPECTRUM))
-    return z, "emotion spectrum (dark -> light)", (0.0, 1.0), (0.0, 1.0), ticks
+    order, positions = spectrum
+    ticks = (list(positions), list(order))
+    return mood, "mood (sadness -> humor)", (0.0, 1.0), (0.0, 1.0), ticks
 
   if z_mode == "pc1":
     pca = PCA(n_components=1)
@@ -358,7 +327,8 @@ def static_plot(coords, height, terrain, title, xlabel, ylabel, zlabel, zlim,
 
 def resolve_bandwidth(z_bandwidth):
   """CLI --z-bandwidth to the value window_emotions wants: 'pool' -> None
-  (boxcar), 'auto' -> "auto" (LOO-CV), else a float bandwidth in paragraphs.
+  (boxcar), 'auto' -> "auto" (sigma = window / 2), 'loo' -> "loo" (LOO-CV), else a
+  float bandwidth in paragraphs.
   """
   if z_bandwidth == "pool":
     return None
@@ -391,9 +361,11 @@ def run_model(book, model, args):
 
   pooled = pool_embeddings(embeddings, windows, args.l2)
   bandwidth = resolve_bandwidth(args.z_bandwidth)
-  emotions, emo_pooled = window_emotions(book, paragraphs, windows, bandwidth)
+  emotions, emo_pooled, mood_w, spectrum = window_emotions(book, paragraphs, windows,
+                                                          bandwidth)
 
-  height, zlabel, zlim, clim, zticks = z_axis(emotions, emo_pooled, args.z_mode)
+  height, zlabel, zlim, clim, zticks = z_axis(emotions, emo_pooled, mood_w, spectrum,
+                                               args.z_mode)
 
   # No variant: win_tag/proj_tag below already put the window, stride, z-mode and
   # z-bandwidth into every filename.
@@ -435,17 +407,17 @@ def main():
   parser.add_argument("--book", default="alice_wonderland", type=str)
   parser.add_argument("--model", type=str)
   parser.add_argument("--all-models", action="store_true")
-  parser.add_argument("--size", default=25, type=int, help="Window length in paragraphs.")
-  parser.add_argument("--stride", default=12, type=int, help="Paragraphs between windows.")
+  parser.add_argument("--size", default=DEFAULT_SIZE, type=int, help="Window length in paragraphs.")
+  parser.add_argument("--stride", default=DEFAULT_STRIDE, type=int, help="Paragraphs between windows.")
   parser.add_argument("--l2", action="store_true",
                       help="L2-normalize embeddings before pooling.")
   parser.add_argument("--proj", nargs="+", default=["pca", "umap", "tsne"],
                       choices=["pca", "umap", "tsne"],
                       help="Base projections for the x-y plane.")
   parser.add_argument("--z-mode", default="spectrum",
-                      help="What the height axis carries: 'spectrum' (emotions laid "
-                           "out dark->light, height = the blend's weighted "
-                           "position on that labelled line, 0..1); 'pc1' (first "
+                      help="What the height axis carries: 'spectrum' (the "
+                           "window's mood from surface/mood, sadness -> humor, "
+                           "0..1); 'pc1' (first "
                            "principal component of the six emotions, the book's "
                            "main axis of emotional variation, [-1,1]); or a "
                            "single emotion name (that emotion's score, 0..1). "

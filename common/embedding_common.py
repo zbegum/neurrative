@@ -16,63 +16,38 @@ with the sweep that uses them, not here.
 
 import argparse
 import os
-from collections import namedtuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 import paths
-from data import load_paragraphs, load_scores
+from data import load_embeddings, load_paragraphs, load_scores
+# One ColorSpec and one resolver, in the arc package (common/data.py puts arc/
+# on the path).
+from narrative_arc.colors import ColorSpec, resolve_colors as _resolve_colors
 
-# name goes in the filename, label on the colorbar. vmin/vmax are pinned to
-# (0, 1) for emotions so every emotion plot shares one scale and a color means
-# the same score across books; None lets matplotlib autoscale.
-ColorSpec = namedtuple("ColorSpec", "name values cmap label vmin vmax")
+class Paragraphs:
+  """Single paragraphs, in the shape narrative_arc.colors.resolve_colors reads."""
+  unit = "paragraph"
+
+  def __init__(self, book, paragraphs):
+    self.book = book
+    self.chapters = np.array([p["chapter_id"] for p in paragraphs])
+    try:
+      self.emotions, self.scores = load_scores(book, paragraphs)
+    except FileNotFoundError:
+      self.emotions, self.scores = [], None
+
+  def __len__(self):
+    return len(self.chapters)
+
+  def emotion(self, name):
+    return self.scores[:, self.emotions.index(name)]
 
 
 def resolve_colors(names, book, paragraphs):
-  """Turn --color names into ColorSpecs, reading the scores only if needed."""
-  emotions, matrix = None, None
-  specs = []
-
-  for name in names:
-    if name == "chapter":
-      specs.append(ColorSpec(
-        "chapter",
-        np.array([p["chapter_id"] for p in paragraphs]),
-        "viridis", "chapter", None, None,
-      ))
-      continue
-
-    if name == "paragraph":
-      specs.append(ColorSpec(
-        "paragraph", np.arange(len(paragraphs)),
-        "plasma", "paragraph index", None, None,
-      ))
-      continue
-
-    if emotions is None:
-      emotions, matrix = load_scores(book, paragraphs)
-
-    wanted = emotions if name == "emotions" else [name]
-    for emotion in wanted:
-      if emotion not in emotions:
-        raise ValueError(
-          f"Unknown --color {emotion!r}. Available: "
-          f"chapter, paragraph, emotions, {', '.join(emotions)}"
-        )
-      specs.append(ColorSpec(
-        emotion, matrix[:, emotions.index(emotion)],
-        "viridis", emotion, 0.0, 1.0,
-      ))
-
-  # --color emotions wonder would draw wonder twice; keep the first of each.
-  seen, unique = set(), []
-  for spec in specs:
-    if spec.name not in seen:
-      seen.add(spec.name)
-      unique.append(spec)
-  return unique
+  """Turn --color names into ColorSpecs (the arc package's resolver)."""
+  return _resolve_colors(names, Paragraphs(book, paragraphs))
 
 
 def draw_points(ax, coords, spec, size):
@@ -134,9 +109,7 @@ def load_book(book, model):
   silently mislabel every point rather than fail.
   """
   paragraphs = load_paragraphs(book)
-  embeddings = np.load(
-    os.path.join("books", book, "embeddings", model, "embeddings.npy")
-  )
+  embeddings = load_embeddings(book, model)
   if len(embeddings) != len(paragraphs):
     raise ValueError(
       f"embeddings ({len(embeddings)}) and paragraphs ({len(paragraphs)}) mismatch."

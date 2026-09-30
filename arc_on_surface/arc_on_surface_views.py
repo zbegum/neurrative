@@ -57,6 +57,7 @@ from smooth_common import load_pca
 from arc_on_surface import (build_surface, resample, support_at, surface_at,
                             window_bounds, window_points)
 from geometry import mesh as gmesh
+from windows import DEFAULT_SIZE, DEFAULT_STRIDE
 from geometry.geodesic import exact_paths
 
 CMAP = "magma"
@@ -137,11 +138,11 @@ def main():
   ap.add_argument("--mode", default="emotions", choices=["emotions", "angles"])
   ap.add_argument("--emotion", default="wonder",
                   help="Which emotion --mode angles rotates around.")
-  ap.add_argument("--size", default=10, type=int)
-  ap.add_argument("--stride", default=5, type=int)
+  ap.add_argument("--size", default=DEFAULT_SIZE, type=int)
+  ap.add_argument("--stride", default=DEFAULT_STRIDE, type=int)
   ap.add_argument("--hx", default=0.15, type=float)
   ap.add_argument("--hy", default=0.15, type=float)
-  ap.add_argument("--alpha", default=1.0, type=float)
+  ap.add_argument("--alpha", default=gmesh.DEFAULT_ALPHA, type=float)
   ap.add_argument("--oversample", default=4.0, type=float)
   ap.add_argument("--snap-tol", default=1.0, type=float)
   ap.add_argument("--curves", default="geodesic",

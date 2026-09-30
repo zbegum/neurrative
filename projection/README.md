@@ -9,7 +9,7 @@ in `surface/` is fitted over, so run `embedding.py` before step 2.
 | `embedding.py` | 2-D projections (PCA / UMAP / t-SNE) colored by chapter, reading order or any emotion. Writes `pca.npy`, which the surfaces read. |
 | `embedding_grid.py` | 3×3 parameter sweeps for UMAP (`n_neighbors` × `min_dist`) and t-SNE (perplexity × learning rate). PCA has no parameters, which is the point. |
 | `projection_comparison.py` | PCA vs UMAP vs t-SNE across neighbourhood scale, scored by trustworthiness and chapter purity over a shuffled-label control. Reuses the coordinates `embedding_grid.py` saved, so `--all` covers every book × model in seconds. |
-| `chain_umap.py` | Reading order as graph structure: UMAP's fuzzy graph with reading-order edges added, weighted by `beta`, and swept. `surface/mood` uses its layout by default. |
+| `chain_umap.py` | Reading order as graph structure: UMAP's fuzzy graph with reading-order edges added, weighted by `beta`, and swept. `surface/mood` can use its layout (`--plane chain_umap`). |
 | `emotion_3d.py` | Emotion as the third axis, or as the color over a 3-component projection. |
 | `inspect_points.py` | Trace a point on a plot back to its paragraph. |
 

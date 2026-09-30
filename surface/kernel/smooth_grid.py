@@ -37,31 +37,9 @@ from smooth_common import (Standardizer, add_common_args, fit_grid, mae,
                            param_combos, prepare, rmse, tune)
 from geometry.smoothers import SMOOTHERS
 
-import epanechnikov
-import gaussian
-import local_linear
-import loess
 
-CMAP = "viridis"
-
-# The parameter each method's columns sweep, and the grid it is tuned over.
-METHODS = [
-  ("gaussian_nw", gaussian.GRID, ("hx", "hy")),
-  ("epanechnikov_nw", epanechnikov.GRID, ("hx", "hy")),
-  ("local_linear", local_linear.GRID, ("hx", "hy")),
-  ("loess", dict(loess.GRID, iterations=[2]), ("frac",)),
-]
-
-
-def scaled(params, keys, factor):
-  """The tuned parameters, with the smoothness knobs scaled by `factor`."""
-  out = dict(params)
-  for k in keys:
-    out[k] = params[k] * factor
-  # LOESS's neighbourhood is a fraction of the samples, so it cannot exceed 1.
-  if "frac" in out:
-    out["frac"] = float(np.clip(out["frac"], 1e-3, 1.0))
-  return out
+# The same methods, tuning grids and column scaling as the bandwidth grid.
+from bandwidth_grid import CMAP, METHODS, scaled
 
 
 def label(params, keys):

@@ -16,9 +16,7 @@ a row of increasing alphas side by side.
 
 The exact solver cannot take a perfectly flat mesh (alpha = 0): a coplanar
 regular grid is a degeneracy for the MMP wavefront and it either aborts or
-returns wrong paths, so alpha = 0 is left out of the sweep. The straight-line
-control lives instead in test_geodesic (a small flat mesh the solver handles
-exactly).
+returns wrong paths, so alpha = 0 is left out of the sweep and there is no flat control.
 
 Example:
 
@@ -46,7 +44,7 @@ import paths as out_paths
 from smooth_common import Standardizer, add_common_args, fit_grid, prepare
 from geometry.geodesic import (exact_paths, polyline_deviation,
                                polyline_length, rising_pairs)
-from geometry.mesh import edge_graph, height_mesh, snap
+from geometry.mesh import DEFAULT_ALPHA, edge_graph, height_mesh, largest_component, snap
 from geometry.smoothers import gaussian_nw
 
 CMAP = "viridis"
@@ -74,6 +72,8 @@ def build_surface(X_raw, y_raw, args):
 def geodesics(GX, GY, Z, mask, X_raw, idx, alpha):
   """Mesh at this alpha, then trace i -> i+1 for each rising pair."""
   vertices, faces, _ = height_mesh(GX, GY, Z, mask, alpha)
+  # The exact solver aborts on a disconnected mesh; keep the biggest piece.
+  vertices, faces, _ = largest_component(vertices, faces)
   graph = edge_graph(vertices, faces)
   feet, snap_dist = snap(X_raw, vertices)
 
@@ -120,10 +120,10 @@ def main():
   parser = add_common_args(argparse.ArgumentParser())
   parser.add_argument("--hx", default=0.2, type=float)
   parser.add_argument("--hy", default=0.2, type=float)
-  parser.add_argument("--alpha", default=1.0, type=float,
+  parser.add_argument("--alpha", default=DEFAULT_ALPHA, type=float,
                       help="Vertical exaggeration of the landscape.")
   parser.add_argument("--alpha-sweep", action="store_true",
-                      help="Draw a row of alphas, including 0 as a flat control.")
+                      help="Draw a row of alphas: 1, 3 and 10.")
   parser.add_argument("--top", default=40, type=int,
                       help="How many of the strongest rises to draw.")
   parser.add_argument("--min-delta", default=0.0, type=float,
@@ -162,7 +162,7 @@ def main():
               f"{far} paragraphs snapped from outside the masked region")
       report(paths, alpha)
       draw(axes[0][c], GX, GY, Z, paths, deltas, args.top, alpha,
-           f"alpha = {alpha:g}" + ("   (flat control)" if alpha == 0 else ""))
+           f"alpha = {alpha:g}")
 
     fig.subplots_adjust(left=0.01, right=0.99, top=0.95, bottom=0.01, wspace=0.0)
     tag = "sweep" if args.alpha_sweep else f"a{args.alpha:g}"

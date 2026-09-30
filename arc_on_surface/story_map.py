@@ -32,9 +32,10 @@ import viewer as V
 from windows import DEFAULT_SIZE, DEFAULT_STRIDE, window_bounds
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# method key -> (figure family of its saved surface, name on the page)
-METHODS = {"kernel": "surface/gaussian_nw", "bspline": "surface/bspline_ls",
-           "poisson": "surface/poisson_open"}
+# method key -> (figure family of its saved surface, the variant its default run writes)
+METHODS = {"kernel": ("surface/gaussian_nw", "default"),
+           "bspline": ("surface/bspline_ls", "d3_p0_lam1e-06"),
+           "poisson": ("surface/poisson_open", "d8_pw4_r0.5_b0.08")}
 
 
 def book_data(book, model):
@@ -42,10 +43,10 @@ def book_data(book, model):
   X = V.pca_coords(book, model)
   extent, gx, gy = V.plane(X)
   fields = {}
-  for key, figure in METHODS.items():
+  for key, (figure, variant) in METHODS.items():
     per = {}
     for e in V.EMOTIONS:
-      f = V.saved_field(book, model, figure, e)
+      f = V.saved_field(book, model, figure, e, variant)
       if f:
         per[e] = V.rounded(V.resample(f, gx, gy))
     if per:

@@ -33,6 +33,7 @@ while not os.path.isdir(os.path.join(_ROOT, "common")):
 sys.path[1:1] = [_ROOT, os.path.join(_ROOT, "common")]
 
 import paths
+from data import load_paragraphs
 
 
 def load_coords(book_dir, model, proj):
@@ -95,9 +96,7 @@ def main():
   parser.add_argument("--ymax", type=float, default=None)
   args = parser.parse_args()
 
-  book_dir = os.path.join("books", args.book)
-  with open(os.path.join(book_dir, "processed.json")) as f:
-    paragraphs = json.load(f)["paragraphs"]
+  paragraphs = load_paragraphs(args.book)
 
   coords = load_coords(args.book, args.model, args.proj)
   if len(coords) != len(paragraphs):

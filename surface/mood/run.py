@@ -22,6 +22,7 @@ sys.path[1:1] = [_ROOT, os.path.join(_ROOT, "common")]
 import data
 import mood as mood_mod
 import paths
+from geometry.mesh import DEFAULT_ALPHA
 import plot
 import sampling
 import surface
@@ -33,7 +34,7 @@ def main():
                     choices=["surface", "plane", "arc"])
     ap.add_argument("--book", default="alice_wonderland")
     ap.add_argument("--model", default="bge-m3")
-    ap.add_argument("--plane", default="chain_umap", choices=["pca", "chain_umap"])
+    ap.add_argument("--plane", default="pca", choices=["pca", "chain_umap"])
     ap.add_argument("--beta", default=2.0, type=float)
     ap.add_argument("--blend", default="banded", choices=mood_mod.BLENDS,
                     help="how six emotions become one height; see mood.mood()")
@@ -48,7 +49,7 @@ def main():
     ap.add_argument("--legs", default="geodesic", choices=["geodesic", "straight"],
                     help="geodesic: shortest path along the surface (needs the "
                          "geometry solver). straight: lifted straight line.")
-    ap.add_argument("--alpha", default=6.0, type=float,
+    ap.add_argument("--alpha", default=DEFAULT_ALPHA, type=float,
                     help="height-to-plane exchange rate for geodesic legs")
     args = ap.parse_args()
 
