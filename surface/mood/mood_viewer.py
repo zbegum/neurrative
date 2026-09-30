@@ -36,7 +36,7 @@ import viewer as V
 # window arithmetic from its one definition (arc/narrative_arc/windows.py); this
 # folder's own data.py would shadow common/data.py, which common/windows.py needs
 sys.path.insert(1, os.path.join(_ROOT, "arc"))
-from narrative_arc.windows import DEFAULT_SIZE, DEFAULT_STRIDE, window_bounds  # noqa: E402
+from narrative_arc.windows import DEFAULT_SIZE, DEFAULT_STRIDE  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -48,7 +48,7 @@ def book_data(book, model, blend, h):
   m, order, positions, _ = mood_mod.mood(S, V.EMOTIONS, blend=blend)
   _, _, _, height_at = mood_surface.fit(X, m, h)
   Q = np.array([(a, b) for b in gy for a in gx])
-  bounds = window_bounds(len(X), DEFAULT_SIZE, DEFAULT_STRIDE)
+  field = height_at(Q)
   data.update({
     "timeline": V.rounded(V.gaussian_filter1d(m, V.TIMELINE_SIGMA, mode="nearest")),
     "order": order, "positions": [float(p) for p in positions],
@@ -56,9 +56,9 @@ def book_data(book, model, blend, h):
     "mood": V.rounded(m),
     "n": len(gx), "extent": extent,
     "support": V.rounded(V.footprint(X, gx, gy), 2),
-    "field": V.rounded(height_at(Q)),
-    "arc": [[round(float(X[a:b, 0].mean()), 4), round(float(X[a:b, 1].mean()), 4),
-             (a + b - 1) / 2.0] for a, b in bounds],
+    "field": V.rounded(field),
+    # the canonical route: windows lifted and joined by geodesics on this surface
+    "route": V.route(X, field, gx, gy, DEFAULT_SIZE, DEFAULT_STRIDE),
   })
   return data
 

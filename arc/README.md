@@ -31,6 +31,9 @@ Results go to `arc/output/<book>/<model>/`.
    pinned to the end so the closing paragraphs are never dropped.
 2. **Projection.** The pooled series is projected three ways, because no single
    projection is trustworthy on its own — *agreement across them is the signal*.
+   PCA is fitted on the book's paragraphs and the windows are placed in that
+   plane, the same plane every surface is built over (`--pca-fit windows` fits it
+   on the windows alone instead; the sweeps do that, since they study the windows).
 3. **Drawing.** Windows are joined in reading order, colored by progression,
    chapter or any single emotion score.
 4. **Curve fitting** (`--fit`). A uniform B-spline is fitted through the windows
@@ -197,6 +200,7 @@ paragraphs, so they are neighbours no matter what the text says.
 | `--size`, `--stride` | `40`, `20` | window length and step, in paragraphs |
 | `--l2` | off | L2-normalize embeddings before pooling |
 | `--methods` | `pca umap tsne` | which projections |
+| `--pca-fit` | `paragraphs` | fit PCA on the paragraphs (canonical) or on the `windows` |
 | `--color` | `progression chapter` | also `emotions`, or an emotion name |
 | `--neighbors`, `--min-dist` | `15`, `0.1` | UMAP |
 | `--perplexity` | `30` | t-SNE, clamped below the window count |

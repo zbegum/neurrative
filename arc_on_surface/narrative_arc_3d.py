@@ -107,10 +107,11 @@ TERRAIN_GRIDS = {
 }
 
 
-def project(embeddings, proj, args):
+def project(embeddings, proj, args, paragraph_rows=None):
   """2-D layout of the pooled windows. Returns (coords, xlabel, ylabel, tag)."""
   (p,) = project_methods(embeddings, [proj], 2, args.neighbors, args.min_dist,
-                         args.perplexity, args.seed)
+                         args.perplexity, args.seed,
+                         pca_fit_rows=paragraph_rows if args.pca_fit == "paragraphs" else None)
   return p.coords, p.labels[0], p.labels[1], p.suffix
 
 
@@ -379,7 +380,7 @@ def run_model(book, model, args):
 
   for proj in args.proj:
     print(f"  [{proj}]")
-    coords, xlabel, ylabel, proj_tag = project(pooled, proj, args)
+    coords, xlabel, ylabel, proj_tag = project(pooled, proj, args, embeddings)
     base = os.path.join(output_dir,
                         f"arc3d_{proj}_{args.z_mode}_{win_tag}{proj_tag}")
 
@@ -437,6 +438,9 @@ def main():
                            "the edge-flattening of a plain kernel average; "
                            "'none' draws the arc without a surface. Fitted on "
                            "every requested projection, not just PCA.")
+  parser.add_argument("--pca-fit", default="paragraphs", choices=["paragraphs", "windows"],
+                      help="Fit PCA on the book's paragraphs (the canonical plane) "
+                           "or on the windows alone.")
   parser.add_argument("--seed", default=0, type=int)
   parser.add_argument("--neighbors", default=15, type=int, help="UMAP n_neighbors.")
   parser.add_argument("--min-dist", default=0.1, type=float, help="UMAP min_dist.")

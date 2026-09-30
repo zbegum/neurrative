@@ -94,8 +94,8 @@ def main():
   ap.add_argument("--resolution", default=260, type=int)
   ap.add_argument("--blur", default=1.2, type=float)
   # surface (drawing) knobs -- same protocol as arc_on_surface
-  ap.add_argument("--hx", default=0.15, type=float)
-  ap.add_argument("--hy", default=0.15, type=float)
+  ap.add_argument("--hx", default=0.2, type=float)
+  ap.add_argument("--hy", default=0.2, type=float)
   ap.add_argument("--mood-h", default=0.2, type=float,
                   help="Bandwidth of the mood surface (surface/mood).")
   ap.add_argument("--margin", default=0.05, type=float)

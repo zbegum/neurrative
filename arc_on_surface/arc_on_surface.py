@@ -462,10 +462,9 @@ def main():
   ap.add_argument("--stride", default=DEFAULT_STRIDE, type=int)
   ap.add_argument("--emotions", nargs="*", default=None,
                   help="Subset of emotions (default: all).")
-  # 0.15 (not the geodesic 0.2): below the CV-tuned 0.4, in the bandwidth grid's
-  # "noise -> structure" band, so the terrain has visible relief and is not flat.
-  ap.add_argument("--hx", default=0.15, type=float)
-  ap.add_argument("--hy", default=0.15, type=float)
+  # The same bandwidth as the mood surface and the geodesic arrows.
+  ap.add_argument("--hx", default=0.2, type=float)
+  ap.add_argument("--hy", default=0.2, type=float)
   ap.add_argument("--alpha", default=gmesh.DEFAULT_ALPHA, type=float,
                   help="Vertical exaggeration: the exchange rate between score "
                        "units and PCA units. Sets every length ratio below.")
@@ -476,14 +475,14 @@ def main():
   ap.add_argument("--oversample", default=4.0, type=float,
                   help="Curve samples per grid cell. Higher = the lift hugs the "
                        "terrain more tightly; the run reports the residual.")
-  ap.add_argument("--legs", default="straight", choices=["straight", "geodesic"],
-                  help="How consecutive waypoints are joined. 'straight' is a "
-                       "line in the PCA plane, lifted onto the surface -- the "
-                       "curve this file was written around, whose shadow is the "
-                       "2-D arc. 'geodesic' is the shortest path along the "
-                       "surface instead: it cannot leave the terrain and lies "
-                       "on it exactly, but it is per-emotion and its shadow is "
-                       "no longer the 2-D arc.")
+  ap.add_argument("--legs", default="geodesic", choices=["geodesic", "straight"],
+                  help="How consecutive waypoints are joined. 'geodesic' (the "
+                       "canonical route) is the shortest path along the surface: "
+                       "it lies on the terrain exactly, is per-emotion, and its "
+                       "shadow is no longer the 2-D arc. 'straight' is a line in "
+                       "the PCA plane lifted onto the surface, whose shadow is "
+                       "the 2-D arc -- the baseline the excess ratio compares "
+                       "with the geodesics.")
   ap.add_argument("--window-point", default="mean", choices=["mean", "medoid"],
                   help="What stands for a window: the centroid of its "
                        "paragraphs (mean), or the most central real paragraph "

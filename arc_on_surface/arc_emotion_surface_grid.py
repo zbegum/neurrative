@@ -52,7 +52,6 @@ def main():
                   choices=mood_mod.BLENDS, help="Mood blends -> grid columns.")
   ap.add_argument("--size", default=DEFAULT_SIZE, type=int)
   ap.add_argument("--stride", default=DEFAULT_STRIDE, type=int)
-  ap.add_argument("--arc-smooth", default=1.0, type=float)
   ap.add_argument("--resolution", default=90, type=int,
                   help="Grid resolution per panel (lower than the single figure "
                        "since the panels are small).")
@@ -71,6 +70,7 @@ def main():
 
   windows = window_bounds(n, args.size, args.stride)
   arc_xy = np.array([X_raw[s:e].mean(axis=0) for s, e in windows])
+  centers = np.array([(s + e - 1) / 2.0 for s, e in windows])
 
   out_dir = paths.out_dir(args.book, args.model, os.path.join(paths.NARRATIVE_ARC_3D, paths.ARC_MOOD_AXIS),
                           {"w": args.size, "s": args.stride,
@@ -90,7 +90,7 @@ def main():
                                               resolution=args.resolution)
       ax.plot_surface(GX, GY, Z, cmap="magma", vmin=0, vmax=1,
                       linewidth=0, antialiased=True, alpha=0.4, rstride=2, cstride=2)
-      pts = lifted_arc(arc_xy, height_at, args.arc_smooth)
+      pts = np.vstack(lifted_arc(GX, GY, Z, arc_xy, centers))
       seg = np.stack([pts[:-1], pts[1:]], axis=1)
       lc = Line3DCollection(seg, cmap="plasma", linewidth=2.6, zorder=5)
       lc.set_array(np.linspace(0, 1, len(pts) - 1))

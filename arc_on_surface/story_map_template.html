@@ -37,6 +37,8 @@ const NAMES = { kernel: "kernel", bspline: "b-spline", poisson: "poisson" };
 const S = { book: Object.keys(DATA.books)[0], emotion: DATA.emotions[0], method: "kernel", three: false, i: 0, axes: true };
 const book = () => DATA.books[S.book];
 const field = () => book().fields[S.method][S.emotion];
+// the canonical route on this surface: [x, y, reading position], built in story_map.py
+const route = () => book().routes[S.method][S.emotion];
 const series = () => book().timeline[S.emotion];
 
 for (const [k, b] of Object.entries(DATA.books)) $("book").add(new Option(b.title, k));
@@ -99,7 +101,7 @@ function draw2d() {
   svg.append("g").attr("fill", css("--dot")).attr("fill-opacity", 0.28).selectAll("circle")
     .data(b.x).join("circle").attr("cx", (x) => sx(x)).attr("cy", (x, j) => sy(b.y[j])).attr("r", 1.6);
   // the arc, coloured by reading order: faint ahead of the reader, solid behind
-  const dense = denseArc(b.arc), N = b.text.length - 1;
+  const dense = route(), N = b.text.length - 1;
   svg.append("g").attr("fill", "none").attr("stroke-linecap", "round").selectAll("line")
     .data(dense.slice(1).map((p, k) => [dense[k], p])).join("line").attr("class", "seg")
     .attr("x1", (s) => sx(s[0][0])).attr("y1", (s) => sy(s[0][1]))
@@ -143,7 +145,7 @@ function draw3d() {
     height: RELIEF, title: S.emotion,
     ticks: [lo, (lo + hi) / 2, hi].map((v) => [h(v), fmt(v)]) }));
   showAxes(scene3.group, S.axes && !rider?.riding);
-  arc3 = denseArc(b.arc).map(([x, y, c]) => {
+  arc3 = route().map(([x, y, c]) => {
     const v = sample(f, b.n, b.extent, x, y);
     return [F.X(x), h(Number.isFinite(v) ? v : lo) + 0.006, F.Z(y), c];
   });
@@ -183,7 +185,7 @@ function go(i) {
     rider.at(ride3, u);
     scene3.request();
   } else {
-    const { k, t } = pathAt(b.arc, S.pos), P = b.arc;
+    const P = route(), { k, t } = pathAt(P, S.pos);
     const p = [P[k][0] + t * (P[k + 1][0] - P[k][0]), P[k][1] + t * (P[k + 1][1] - P[k][1])];
     d3.selectAll("#map2d .seg").attr("stroke-opacity", (s) => (s[0][2] <= S.pos ? 1 : 0.28))
       .attr("stroke-width", (s) => (s[0][2] <= S.pos ? 2.6 : 1.6));

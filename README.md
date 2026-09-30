@@ -32,6 +32,24 @@ docs/interactive/   the interactive page (open index.html)
 
 Each step folder has its own README and writes its results to its own `output/`.
 
+## Pipeline
+
+Every script defaults to one pipeline:
+
+1. **windows** of 40 paragraphs stepping by 20, each the mean of its paragraphs (`common/windows.py`)
+2. **plane**: PCA fitted on the paragraphs; the windows are placed in it
+3. **arc**: a B-spline fitted through the windows in that plane (`arc/`)
+4. **mood**: one value per paragraph on sadness → humor, smoothed into a surface over the plane (`surface/mood/`)
+5. **lift**: each window lifted onto the surface, consecutive windows joined by exact geodesics (`surface/mood/geodesic.py`, vertical scale 1)
+6. **time**: each point on the route gets a reading position from how far along its leg its shadow is
+
+The alternatives we tried stay as flags or scripts, because each answers its own question:
+UMAP / t-SNE and `--pca-fit windows` (other planes), chain-UMAP (`--plane chain_umap`),
+kernel / B-spline / Poisson surfaces per emotion (`surface/`), straight legs
+(`--legs straight`, the baseline the geodesics are measured against), distance-based
+smoothing on the surface (`arc_on_surface/arc_smooth.py`), and height from the text
+instead of the surface (`arc_on_surface/narrative_arc_3d.py`).
+
 ## Outputs
 
 | | |
@@ -41,7 +59,8 @@ Each step folder has its own README and writes its results to its own `output/`.
 | ![](docs/figures/13_arc_2d_bspline_alice.png) the arc with its B-spline | ![](docs/figures/33_tube_alice.png) emotion tube |
 | ![](docs/figures/28_arc_on_terrain_alice.png) the arc on each emotion surface | ![](docs/figures/31_geodesics_wonder_alice.png) geodesics on the wonder terrain |
 
-More in [docs/figures](docs/figures/README.md).
+More in [docs/figures](docs/figures/README.md), and every figure, folder by folder with its own notes, in the
+[Google Drive folder](https://drive.google.com/drive/folders/1e7Bp79dD-s7VlD2bO09AVZsq2iGEcIuq).
 
 ## Interactive
 

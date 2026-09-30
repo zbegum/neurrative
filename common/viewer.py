@@ -94,6 +94,35 @@ def footprint(X, gx, gy, h=0.4):
   return np.minimum(sup / np.percentile(at, 5), 9.99)
 
 
+def route(X, values, gx, gy, size, stride, support=None):
+  """The canonical route on one surface, as [[x, y, t], ...].
+
+  The windows' mean points lifted onto the surface (values on the common grid,
+  row-major over gy) and joined by exact geodesics, each point timed by its
+  shadow's length along its leg (surface/mood/geodesic.py). With `support`, the
+  mesh keeps only the footprint (support >= 1): outside it the page's fields are
+  filled with copied values, and the exact solver aborts on such flat patches.
+  """
+  # By file: in surface/mood the local surface.py shadows the `surface` package.
+  import importlib.util
+  spec = importlib.util.spec_from_file_location(
+    "neurrative_mood_geodesic", os.path.join(paths.ROOT, "surface", "mood", "geodesic.py"))
+  geodesic = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(geodesic)
+  geodesic_route = geodesic.route
+  from narrative_arc.windows import window_bounds
+  bounds = window_bounds(len(X), size, stride)
+  P = np.array([X[a:b].mean(axis=0) for a, b in bounds])
+  centers = np.array([(a + b - 1) / 2.0 for a, b in bounds])
+  GX, GY = np.meshgrid(gx, gy)
+  Z = np.asarray(values, dtype=float).reshape(len(gy), len(gx))
+  if support is not None:
+    Z = np.where(np.asarray(support).reshape(Z.shape) >= 1, Z, np.nan)
+  runs, _, _ = geodesic_route(GX, GY, Z, P, centers)
+  pts = np.vstack([np.column_stack([R[:, :2], t]) for R, t in runs])
+  return [[round(float(x), 4), round(float(y), 4), round(float(t), 2)] for x, y, t in pts]
+
+
 def resample(npz, gx, gy):
   """A saved field_<emotion>_pca.npz on the common grid.
 

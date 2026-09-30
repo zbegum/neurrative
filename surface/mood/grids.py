@@ -142,7 +142,7 @@ def grid_windows(coords, emotions, scores, chapters, args):
 
     The surface is fitted to paragraphs, so it does not depend on the window:
     every panel shows the same terrain and only the route changes. Each window
-    is represented by its medoid paragraph. Window settings are read from what
+    is represented by its mean point, as in the canonical route. Window settings are read from what
     common/windows.py has saved, so this cannot
     disagree with the rest of the repository about where a window begins.
     """
@@ -164,13 +164,11 @@ def grid_windows(coords, emotions, scores, chapters, args):
     rows = int(np.ceil(len(settings) / cols))
     fig = plt.figure(figsize=(6 * cols, 5.4 * rows))
     for k, (name, starts, stops) in enumerate(settings):
-        idx = np.array([sampling._medoid(coords, np.arange(a, b))
-                        for a, b in zip(starts, stops)])
+        way = np.array([coords[a:b].mean(axis=0) for a, b in zip(starts, stops)])
         centers = (starts + stops - 1) / 2.0
         ax = _panel(fig, rows, cols, k, GX, GY, Z, order, positions,
-                    f"{name}   {len(idx)} windows")
-        runs, solved, total = geodesic.route(GX, GY, Z, coords[idx], centers,
-                                             args.alpha)
+                    f"{name}   {len(way)} windows")
+        runs, solved, total = geodesic.route(GX, GY, Z, way, centers, args.alpha)
         plot.draw_runs(ax, runs, len(coords))
         print(f"  {name}: {solved}/{total} geodesic legs")
     plot.reading_bar(fig, len(coords))

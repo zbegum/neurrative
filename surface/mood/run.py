@@ -19,6 +19,8 @@ while not os.path.isdir(os.path.join(_ROOT, "common")):
     _ROOT = os.path.dirname(_ROOT)
 sys.path[1:1] = [_ROOT, os.path.join(_ROOT, "common")]
 
+import numpy as np
+
 import data
 import mood as mood_mod
 import paths
@@ -26,6 +28,7 @@ from geometry.mesh import DEFAULT_ALPHA
 import plot
 import sampling
 import surface
+from windows import DEFAULT_SIZE, DEFAULT_STRIDE, window_bounds
 
 
 def main():
@@ -42,9 +45,11 @@ def main():
     ap.add_argument("--temp", default=0.15, type=float)
     ap.add_argument("--h", default=0.2, type=float)
     ap.add_argument("--mask-floor", default=None, type=float)
-    ap.add_argument("--sampling", default="chapter_medoids",
-                    choices=["chapter_medoids", "uniform", "douglas_peucker",
-                             "farthest_point"])
+    ap.add_argument("--sampling", default="windows",
+                    choices=["windows", "chapter_medoids", "uniform",
+                             "douglas_peucker", "farthest_point"],
+                    help="windows: the canonical route through the window means "
+                         "(40/20); the others pick single paragraphs.")
     ap.add_argument("--n", default=60, type=int)
     ap.add_argument("--legs", default="geodesic", choices=["geodesic", "straight"],
                     help="geodesic: shortest path along the surface (needs the "
@@ -80,21 +85,27 @@ def main():
                      fontsize=12)
         name = f"mood_surface_{tag}.png"
     else:
-        idx = sampling.pick(args.sampling, coords, m, chapters, args.n)
+        if args.sampling == "windows":
+            bounds = window_bounds(len(coords), DEFAULT_SIZE, DEFAULT_STRIDE)
+            way = np.array([coords[a:b].mean(axis=0) for a, b in bounds])
+            pos = np.array([(a + b - 1) / 2.0 for a, b in bounds])
+            what = f"{len(way)} windows"
+        else:
+            idx = sampling.pick(args.sampling, coords, m, chapters, args.n)
+            way, pos, what = coords[idx], idx.astype(float), f"{len(idx)} paragraphs"
         if args.legs == "geodesic":
             import geodesic
-            runs, solved, total = geodesic.route(
-                GX, GY, Z, coords[idx], idx.astype(float), args.alpha)
+            runs, solved, total = geodesic.route(GX, GY, Z, way, pos, args.alpha)
             plot.draw_runs(ax, runs, len(coords))
             print(f"{solved}/{total} geodesic legs")
         else:
-            xy, t = _lift(coords[idx], idx.astype(float))
+            xy, t = _lift(way, pos)
             pts = plot.np.column_stack([xy, height_at(xy)])
             plot.draw_arc(ax, pts, t, len(coords))
         plot.reading_bar(fig, len(coords))
         fig.suptitle(
             f"narrative arc on the mood surface -- {args.book} / {args.model}\n"
-            f"{tag}, {args.sampling} ({len(idx)} paragraphs)", fontsize=12)
+            f"{tag}, {args.sampling} ({what})", fontsize=12)
         name = f"mood_arc_{args.sampling}_{tag}.png"
 
     fig.subplots_adjust(top=0.9)

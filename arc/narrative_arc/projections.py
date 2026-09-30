@@ -30,15 +30,21 @@ Projection = namedtuple("Projection", "name tag labels coords suffix info model"
                         defaults=(None,))
 
 
-def project_pca(pooled, n_components, seed=0):
+def project_pca(pooled, n_components, seed=0, fit_rows=None):
+  """PCA of the windows. With `fit_rows` (the book's paragraph embeddings) the
+  components are fitted on the paragraphs and the windows are placed in that
+  plane -- the canonical plane, shared with every surface; without, on the
+  windows themselves."""
   # Seeded: for more than 500 rows sklearn picks a randomized SVD.
   pca = PCA(n_components=n_components, random_state=seed)
-  coords = pca.fit_transform(pooled)
+  pca.fit(pooled if fit_rows is None else fit_rows)
+  coords = pca.transform(pooled)
   var = pca.explained_variance_ratio_
   print(f"  PCA: explained variance {var.sum():.1%} over {n_components} components")
   labels = tuple(f"PC{i + 1} ({v:.1%} var)" for i, v in enumerate(var))
-  return Projection("PCA", "pca", labels, coords, "",
-                    {"explained_variance_ratio": var.round(4).tolist()}, pca)
+  return Projection("PCA", "pca", labels, coords, "" if fit_rows is not None else "_pcawin",
+                    {"explained_variance_ratio": var.round(4).tolist(),
+                     "fitted_on": "windows" if fit_rows is None else "paragraphs"}, pca)
 
 
 def project_umap(pooled, n_components, neighbors, min_dist, seed):
@@ -77,15 +83,18 @@ def project_tsne(pooled, n_components, perplexity, seed):
 
 
 def project(pooled, methods=METHODS, n_components=2, neighbors=15,
-            min_dist=0.1, perplexity=30.0, seed=0):
-  """One Projection per requested method, in the order asked for."""
+            min_dist=0.1, perplexity=30.0, seed=0, pca_fit_rows=None):
+  """One Projection per requested method, in the order asked for.
+
+  `pca_fit_rows`: fit PCA on these rows (the paragraphs) instead of on `pooled`.
+  """
   if n_components not in (2, 3):
     raise ValueError(f"n_components must be 2 or 3 (got {n_components}).")
 
   out = []
   for method in methods:
     if method == "pca":
-      out.append(project_pca(pooled, n_components, seed))
+      out.append(project_pca(pooled, n_components, seed, pca_fit_rows))
     elif method == "umap":
       out.append(project_umap(pooled, n_components, neighbors, min_dist, seed))
     elif method == "tsne":

@@ -65,7 +65,8 @@ def run(book, model, args):
 
   projections = project(series.pooled, args.methods, n_components=3,
                         neighbors=args.neighbors, min_dist=args.min_dist,
-                        perplexity=args.perplexity, seed=args.seed)
+                        perplexity=args.perplexity, seed=args.seed,
+                        pca_fit_rows=cli.pca_rows(args, book, model))
 
   output_dir = paths.out_dir(args.output_dir, book, model, paths.ARC_3D)
   fit = cli.fit_opts(args)

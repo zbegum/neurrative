@@ -50,6 +50,7 @@ from windows import DEFAULT_SIZE, DEFAULT_STRIDE, window_bounds
 # One definition of mood for the whole repository: surface/mood.
 from surface.mood import mood as mood_mod, surface as mood_surface
 from surface.mood.mood import SPECTRUM
+from surface.mood.geodesic import route as mood_route
 
 # Valence order, heavy/negative (bottom) to light/positive (top). Adjustable via
 # --order; anything not named is appended so the run never silently drops one.
@@ -89,19 +90,13 @@ def smooth1d(y, sigma):
   return nadaraya_watson(idx, y, idx, sigma)[0]
 
 
-def lifted_arc(arc_xy, height, arc_smooth, per=20, lift=0.01):
-  """The windows' path, smoothed over window index, sampled densely and lifted.
-
-  `height` evaluates the surface at (n, 2) plane points. Lifting every dense
-  sample (not just the windows) keeps the drawn path on the surface; straight 3-D
-  chords between lifted windows would cut through the hills between them.
-  """
-  wx = smooth1d(arc_xy[:, 0], arc_smooth)
-  wy = smooth1d(arc_xy[:, 1], arc_smooth)
-  t = np.linspace(0, len(wx) - 1, per * len(wx))
-  xy = np.column_stack([np.interp(t, np.arange(len(wx)), wx),
-                        np.interp(t, np.arange(len(wy)), wy)])
-  return np.column_stack([xy, height(xy) + lift])
+def lifted_arc(GX, GY, Z, arc_xy, centers, lift=0.01):
+  """The canonical route on the surface Z: the windows lifted and joined by exact
+  geodesics (surface/mood/geodesic.py). Returns the points, lifted by `lift` so
+  they clear the drawn surface, in reading order (one array; a leg the solver
+  cannot join simply leaves a gap)."""
+  runs, _, _ = mood_route(GX, GY, Z, arc_xy, centers)
+  return [P + [0, 0, lift] for P, _ in runs]
 
 
 def main():
@@ -122,9 +117,6 @@ def main():
                        "y to the mood's actual range so the changes fill the plot.")
   ap.add_argument("--smooth", default=1.5, type=float,
                   help="Gaussian smoothing (in windows) of the mood line; 0 = raw.")
-  ap.add_argument("--arc-smooth", default=1.0, type=float,
-                  help="Smoothing (in windows) of the 3-D arc path so it reads as a "
-                       "clean curve over the landscape instead of a hairball.")
   args = ap.parse_args()
 
   paragraphs = load_paragraphs(args.book)
@@ -163,7 +155,8 @@ def main():
   # Smooth the arc PATH (x, y and height together) so it reads as one clean curve
   # flowing over the landscape rather than a window-to-window hairball, and lift
   # it a hair above the surface so it is never buried inside it.
-  pts = lifted_arc(arc_xy, height_at, args.arc_smooth)
+  runs = lifted_arc(GX, GY, mood_grid, arc_xy, centers)
+  pts = np.vstack(runs)
 
   fig = plt.figure(figsize=(12, 9))
   ax = fig.add_subplot(111, projection="3d")

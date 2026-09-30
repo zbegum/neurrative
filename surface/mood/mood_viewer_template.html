@@ -73,7 +73,7 @@ function draw() {
   });
   showAxes(scene.group, S.axes && !rider.riding);
   // the arc on the surface
-  arc = denseArc(b.arc).map(([x, y, c]) => {
+  arc = b.route.map(([x, y, c]) => {
     const v = sample(f, b.n, b.extent, x, y);
     return [F.X(x), (Number.isFinite(v) ? v : 0) * H + 0.006, F.Z(y), c];
   });

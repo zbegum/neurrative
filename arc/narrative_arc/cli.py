@@ -8,7 +8,7 @@ from . import paths
 from . import windows as W
 from .colors import COLOR_HELP
 from .curves import SOLVERS, FitOpts, fit_curve
-from .data import list_books, list_models
+from .data import list_books, list_models, load_embeddings
 from .projections import METHODS
 
 
@@ -47,6 +47,7 @@ def add_arc_args(parser):
   parser.add_argument("--no-grid", action="store_true",
                       help="Skip the side-by-side figure of all projections.")
 
+  add_pca_fit_arg(parser)
   parser.add_argument("--seed", default=0, type=int)
   parser.add_argument("--neighbors", default=15, type=int, help="UMAP n_neighbors.")
   parser.add_argument("--min-dist", default=0.1, type=float, help="UMAP min_dist.")
@@ -70,6 +71,22 @@ def add_arc_args(parser):
                       help="Solver iteration cap.")
   parser.add_argument("--show-control", action="store_true",
                       help="Draw the fitted control polygon too.")
+
+
+def add_pca_fit_arg(parser):
+  parser.add_argument("--pca-fit", default="paragraphs", choices=["paragraphs", "windows"],
+                      help="Fit PCA on the book's paragraphs (the canonical plane, "
+                           "shared with the surfaces) or on the windows alone.")
+
+
+def pca_rows(args, book, model):
+  """The rows PCA is fitted on: the paragraphs' embeddings, or None (the windows)."""
+  if args.pca_fit == "windows":
+    return None
+  rows = load_embeddings(args.data_dir, book, model)
+  if args.l2:
+    rows = rows / np.clip(np.linalg.norm(rows, axis=1, keepdims=True), 1e-12, None)
+  return rows
 
 
 def targets(args, parser):

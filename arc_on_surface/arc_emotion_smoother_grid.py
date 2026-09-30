@@ -77,11 +77,6 @@ def fit_surface(predict, params, X_raw, y_raw, res, margin, floor):
   return raw[:, 0].reshape(gx.shape), raw[:, 1].reshape(gy.shape), Z, xs, ys
 
 
-def surface_at(predict, params, xs, ys, X_raw, y_raw, Q):
-  vals, _ = predict(xs.forward(X_raw), ys.forward(y_raw), xs.forward(Q), **params)
-  return np.clip(ys.inverse(vals), 0.0, 1.0)
-
-
 def variant_params(args):
   """The knobs that change this grid. METHODS fixes the swept smoothers and
   bandwidths in code, so only the windows and the blend vary."""
@@ -95,7 +90,6 @@ def main():
   ap.add_argument("--size", default=DEFAULT_SIZE, type=int)
   ap.add_argument("--stride", default=DEFAULT_STRIDE, type=int)
   ap.add_argument("--blend", default="banded", choices=mood_mod.BLENDS)
-  ap.add_argument("--arc-smooth", default=1.0, type=float)
   ap.add_argument("--resolution", default=60, type=int)
   ap.add_argument("--margin", default=0.05, type=float)
   ap.add_argument("--density-floor", default=5.0, type=float)
@@ -111,6 +105,7 @@ def main():
 
   windows = window_bounds(n, args.size, args.stride)
   arc_xy = np.array([X_raw[s:e].mean(axis=0) for s, e in windows])
+  centers = np.array([(s + e - 1) / 2.0 for s, e in windows])
 
   out_dir = paths.out_dir(args.book, args.model, os.path.join(paths.NARRATIVE_ARC_3D, paths.ARC_MOOD_AXIS),
                           variant_params(args))
@@ -127,12 +122,10 @@ def main():
     for c, (params, label) in enumerate(zip(param_cols, labels)):
       GX, GY, mood_grid, xs, ys = fit_surface(predict, params, X_raw, m, args.resolution,
                                               args.margin, args.density_floor)
-      height = lambda Q: surface_at(predict, params, xs, ys, X_raw, m, Q)
-
       ax = fig.add_subplot(nr, nc, r * nc + c + 1, projection="3d")
       ax.plot_surface(GX, GY, mood_grid, cmap="magma", vmin=0, vmax=1,
                       linewidth=0, antialiased=True, alpha=0.4, rstride=2, cstride=2)
-      pts = lifted_arc(arc_xy, height, args.arc_smooth)
+      pts = np.vstack(lifted_arc(GX, GY, mood_grid, arc_xy, centers))
       seg = np.stack([pts[:-1], pts[1:]], axis=1)
       lc = Line3DCollection(seg, cmap="plasma", linewidth=2.4, zorder=5)
       lc.set_array(np.linspace(0, 1, len(pts) - 1))

@@ -168,27 +168,13 @@ function pathAt(path, i) {
   const c = (w) => w[w.length - 1];
   if (i <= c(path[0])) return { k: 0, t: 0 };
   for (let k = 1; k < path.length; k++) {
-    if (i <= c(path[k])) return { k: k - 1, t: (i - c(path[k - 1])) / (c(path[k]) - c(path[k - 1])) };
+    if (i <= c(path[k])) return { k: k - 1, t: (i - c(path[k - 1])) / ((c(path[k]) - c(path[k - 1])) || 1) };
   }
   return { k: path.length - 2, t: 1 };
 }
 
 // A window path [[x, y, centre], ...] sampled densely along a Catmull-Rom curve;
 // each sample keeps its reading position (the interpolated centre).
-function denseArc(P, per = 8) {
-  const out = [];
-  for (let k = 0; k < P.length - 1; k++) {
-    const p0 = P[Math.max(0, k - 1)], p1 = P[k], p2 = P[k + 1], p3 = P[Math.min(P.length - 1, k + 2)];
-    for (let s = 0; s < per; s++) {
-      const t = s / per, t2 = t * t, t3 = t2 * t;
-      const cr = (a, b, c, d) => 0.5 * (2 * b + (c - a) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (3 * b - a - 3 * c + d) * t3);
-      out.push([cr(p0[0], p1[0], p2[0], p3[0]), cr(p0[1], p1[1], p2[1], p3[1]), p1[2] + t * (p2[2] - p1[2])]);
-    }
-  }
-  out.push(P[P.length - 1]);
-  return out;
-}
-
 // ---- 3-D -------------------------------------------------------------------------
 // Map the PCA extent to a unit square around the origin: x -> world x, y -> world -z.
 function Frame(extent) {

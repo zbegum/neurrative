@@ -26,6 +26,10 @@ def route(GX, GY, Z, waypoints, reading_pos, alpha=gmesh.DEFAULT_ALPHA, snap_tol
     a run breaks where a leg could not be solved.
     """
     cell = abs(GX[0, 1] - GX[0, 0])
+    # A tiny fixed jitter (1e-6 of the relief) breaks the near-coplanar triangles
+    # of almost flat surfaces, on which the exact solver asserts and aborts.
+    relief = np.nanmax(Z) - np.nanmin(Z)
+    Z = Z + 1e-6 * relief * np.random.default_rng(0).standard_normal(Z.shape)
     verts, faces, _ = gmesh.height_mesh(GX, GY, Z, np.isfinite(Z), alpha)
     verts, faces, _ = gmesh.largest_component(verts, faces)
     graph = gmesh.edge_graph(verts, faces)

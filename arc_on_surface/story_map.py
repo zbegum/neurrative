@@ -5,7 +5,8 @@ text it is passing through beside it and the emotion over reading order below.
 The landscape is one of the saved surfaces (surface/kernel Gaussian,
 surface/bspline, surface/poisson), seen flat as contour bands or in 3-D with the
 arc riding on it; the mood surface has its own page (surface/mood/mood_viewer.py).
-The arc is the 40-paragraph windows in the PCA plane. Drag the timeline, click the
+The arc is the canonical route: the 40-paragraph windows' mean points, lifted
+onto the shown surface and joined by exact geodesics on it. Drag the timeline, click the
 map, arrows step, space plays.
 
 Needs, for each book: projection/embedding.py, and the surface scripts whose
@@ -29,7 +30,7 @@ while not os.path.isdir(os.path.join(_ROOT, "common")):
 sys.path[1:1] = [_ROOT, os.path.join(_ROOT, "common")]
 
 import viewer as V
-from windows import DEFAULT_SIZE, DEFAULT_STRIDE, window_bounds
+from windows import DEFAULT_SIZE, DEFAULT_STRIDE
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # method key -> (figure family of its saved surface, the variant its default run writes)
@@ -42,23 +43,25 @@ def book_data(book, model):
   data, S = V.reading(book)
   X = V.pca_coords(book, model)
   extent, gx, gy = V.plane(X)
-  fields = {}
+  support = V.footprint(X, gx, gy)
+  fields, routes = {}, {}
   for key, (figure, variant) in METHODS.items():
-    per = {}
+    per, rts = {}, {}
     for e in V.EMOTIONS:
       f = V.saved_field(book, model, figure, e, variant)
       if f:
-        per[e] = V.rounded(V.resample(f, gx, gy))
+        values = V.resample(f, gx, gy)
+        per[e] = V.rounded(values)
+        # the canonical route on this surface: windows lifted, joined by geodesics
+        rts[e] = V.route(X, values, gx, gy, DEFAULT_SIZE, DEFAULT_STRIDE, support)
     if per:
-      fields[key] = per
-  bounds = window_bounds(len(X), DEFAULT_SIZE, DEFAULT_STRIDE)
+      fields[key], routes[key] = per, rts
   data.update({
     "x": V.rounded(X[:, 0], 4), "y": V.rounded(X[:, 1], 4),
     "timeline": V.timelines(S),
-    "n": len(gx), "extent": extent, "support": V.rounded(V.footprint(X, gx, gy), 2),
+    "n": len(gx), "extent": extent, "support": V.rounded(support, 2),
     "fields": fields,
-    "arc": [[round(float(X[a:b, 0].mean()), 4), round(float(X[a:b, 1].mean()), 4),
-             (a + b - 1) / 2.0] for a, b in bounds],
+    "routes": routes,
   })
   return data
 

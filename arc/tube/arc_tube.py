@@ -84,7 +84,8 @@ def run(book, model, args):
       continue
     proj = project(series.pooled, [method], n_components=3,
                    neighbors=min(args.neighbors, n - 1), min_dist=args.min_dist,
-                   perplexity=args.perplexity, seed=args.seed)[0]
+                   perplexity=args.perplexity, seed=args.seed,
+                   pca_fit_rows=cli.pca_rows(args, book, model))[0]
 
     opts = FitOpts(args.n_control or int(np.clip(n // 4, 6, 24)), args.degree,
                    args.lambda_, "dn", 300)
@@ -172,6 +173,7 @@ def main():
                            "folding at tight bends).")
   parser.add_argument("--degree", default=3, type=int)
   parser.add_argument("--lambda", dest="lambda_", default=0.1, type=float)
+  cli.add_pca_fit_arg(parser)
   parser.add_argument("--seed", default=0, type=int)
   parser.add_argument("--neighbors", default=15, type=int)
   parser.add_argument("--min-dist", default=0.1, type=float)

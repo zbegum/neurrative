@@ -93,8 +93,9 @@ seems to cross itself in one flat view can be checked against the other two.
 `cd arc && python curve/arc_2d.py --all-books --all-models --fit --show-control`
 (and `arc_3d.py` with the same flags)
 
-Windows of 40 paragraphs stepping by 20, joined in reading order: **O** is the
-opening, **X** the ending, and the color is reading position. The thick curve is
+Windows of 40 paragraphs stepping by 20, placed in the PCA plane of the
+paragraphs (the plane the surfaces are built over) and joined in reading order:
+**O** is the opening, **X** the ending, and the color is reading position. The thick curve is
 a cubic uniform B-spline fitted with `bspline-regression`
 (`arc/narrative_arc/curves.py`), which optimises the control points
 (the dashed polygon) and each window's position on the curve at the same time.
@@ -116,8 +117,8 @@ between.
 
 ![B-spline fit sweep: control points x lambda](15_bspline_fit_sweep_alice.png)
 
-**In 3-D** the third principal component (10.7% of the variance for Alice)
-separates passes that overlap in the plane. The fitter is the same one, since
+**In 3-D** the third principal component (3.5% of the paragraphs' variance for
+Alice) separates passes that overlap in the plane. The fitter is the same one, since
 bspline-regression works in any dimension.
 
 ![Alice: 3-D arc with B-spline](16_arc_3d_bspline_alice.png)
