@@ -4,6 +4,10 @@ A book read as geometry: every paragraph is a point in an embedding space with
 six emotion scores, and the story becomes a plane, an emotion landscape over it,
 and a curve through it.
 
+## Supplementary figures
+
+[Supplementary figures on Google Drive](https://drive.google.com/drive/folders/1e7Bp79dD-s7VlD2bO09AVZsq2iGEcIuq?usp=sharing).
+
 ## Folder structure
 
 ```
